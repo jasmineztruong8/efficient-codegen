@@ -1,0 +1,162 @@
+[
+  {
+    "dataset_index": 3,
+    "instruction": "\ndef merge_sort(arr):\n    \"\"\"Implement a modified merge sort algorithm that uses a binary search to find the correct position for each element in the sorted subarray. Additionally, ensure that the algorithm has a time complexity of O(nlogn) and a space complexity of O(n).\"\"\"\n    if len(arr) <= 1:\n        return arr\n    \n    mid = len(arr) // 2\n    left = merge_sort(arr[:mid])\n    right = merge_sort(arr[mid:])\n    \n    return merge(left, right)\n\ndef merge(left, right):\n    \"\"\"Implement a modified merge sort algorithm that uses a binary search to find the correct position for each element in the sorted subarray. Additionally, ensure that the algorithm has a time complexity of O(nlogn) and a space complexity of O(n).\"\"\"",
+    "input": "",
+    "output": "\ndef merge_sort(arr):\n    \n    merged = []\n    i = 0\n    \n    for val in left:\n        while i < len(right) and right[i] < val:\n            merged.append(right[i])\n            i += 1\n        merged.append(val)\n    \n    merged.extend(right[i:])\n    return merged",
+    "tests": "assert merge_sort([]) == []\nassert merge_sort([1]) == [1]\nassert merge_sort([4, 3, 2, 1]) == [1, 2, 3, 4]\nassert merge_sort([1, 2, 3, 4]) == [1, 2, 3, 4]\nassert merge_sort([5, 3, 8, 1, 0]) == [0, 1, 3, 5, 8]",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 3313,
+    "instruction": "\nimport collections\nimport heapq\n\n# function to count frequency of elements and return top n\ndef topNFrequent(nums, n): \n    \"\"\"What is the most optimal way to count the frequency of each element in an array using a dictionary in Python, considering the case where an array might hold elements of different data types (numbers, strings, etc.)? \n\nAdditionally, implement a method to sort this dictionary by the frequencies and output the top n elements with the highest frequency. If multiple elements have the same frequency, they should be sorted lexicographically. Assume that the input array will have at least one element. \n\nTry to solve this problem with the time complexity less than O(n log n).\"\"\"",
+    "input": "",
+    "output": "\nimport collections\nimport heapq\n\n# function to count frequency of elements and return top n\ndef topNFrequent(nums, n): \n    \n    count = collections.Counter(nums) \n    return heapq.nlargest(n, count.keys(), key=count.get)",
+    "tests": "assert topNFrequent([1, 2, 3, 1, 2, 1], 2) == [1, 2]\nassert topNFrequent(['hello', 'world', 'hello', 'python'], 1) == ['hello']\nassert topNFrequent([1], 1) == [1]\nassert topNFrequent(['a', 'b', 'c', 'a'], 3) == ['a', 'b', 'c']",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 1855,
+    "instruction": "def binary_search(arr, x): \n    \"\"\"Rewrite this function to use a binary search instead. You are given a sorted array of integers and a target integer. The function should return the index of the first occurrence of the target integer in the array, or -1 if it is not present. You can assume that the array may contain duplicates.\n\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n#Erroneous Code#\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid + 1] != x):  # Changed arr[mid - 1] to arr[mid + 1]\n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\"\"\"\n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n# Updated function to use binary search correctly\ndef binary_search(arr, x): \n    \"\"\"Rewrite this function to use a binary search instead. You are given a sorted array of integers and a target integer. The function should return the index of the first occurrence of the target integer in the array, or -1 if it is not present. You can assume that the array may contain duplicates.\n\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n#Erroneous Code#\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid + 1] != x):  # Changed arr[mid - 1] to arr[mid + 1]\n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\"\"\"",
+    "input": "",
+    "output": "def binary_search(arr, x): \n    \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 3) == 2\nassert binary_search([1, 1, 2, 2, 3, 3, 4, 4, 5, 5], 3) == 4\nassert binary_search([1, 1, 1, 1], 1) == 0\nassert binary_search([1, 2, 3, 4, 5], 6) == -1\nassert binary_search([], 5) == -1",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 87,
+    "instruction": "\nfrom typing import List\n\ndef binary_search(arr: List[int], value: int) -> int:\n    \"\"\"Given a sorted array of integers and an integer value, figure out whether the given value is present in the array or not using a binary search algorithm. If the value is present, return the index at which it is found. If the value is not present, return the index at which it should be inserted to maintain the sorted order.\n\nArray: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nValue: 7\n\nPlease write a function `binary_search` to solve the problem. The function should have the following signature:\n\n```\ndef binary_search(arr: List[int], value: int) -> int:\n    pass\n```\n\n**Input**\n- `arr`: a sorted list of integers with length `n` (1 ≤ n ≤ 10^6)\n- `value`: an integer (-10^9 ≤ value ≤ 10^9)\n\n**Output**\n- Returns an integer representing the index at which the value is found in the array, or the index at which it should be inserted to maintain the sorted order.\n\n**Example**\n```\narr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nvalue = 7\n\nbinary_search(arr, value) => 6\n```\n\n**Note**\nIn the given example, the value 7 is present in the array at index 6.\"\"\"",
+    "input": "",
+    "output": "\nfrom typing import List\n\ndef binary_search(arr: List[int], value: int) -> int:\n    \n    left = 0\n    right = len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == value:\n            return mid\n        \n        if arr[mid] < value:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return left",
+    "tests": "assert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 7) == 6\nassert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1) == 0\nassert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10) == 9",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 538,
+    "instruction": "\ndef binary_search(arr, target):\n    \"\"\"Implement a binary search algorithm in Python to search for a specific element in a sorted list. The algorithm should return the index of the element if found, or -1 if not found. Additionally, the algorithm should be able to handle duplicate elements in the list and return the index of the first occurrence of the element. The implementation should have a time complexity of O(log n).\"\"\"",
+    "input": "",
+    "output": "\ndef binary_search(arr, target):\n    \n    left = 0\n    right = len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == target:\n            # Check if it's the first occurrence\n            while mid > 0 and arr[mid-1] == target:\n                mid -= 1\n            return mid\n        \n        if arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 3) == 2\nassert binary_search([1, 2, 3, 4, 5], 6) == -1\nassert binary_search([1, 2, 2, 3, 4, 5], 2) == 1\nassert binary_search([-10, -5, 0, 5, 10], 0) == 2",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 1065,
+    "instruction": "\ndef numTrees(n: int) -> int:\n    \"\"\"Design and write an algorithm to calculate the total number of possible unique binary search trees with n nodes. Additionally, ensure that the function's time complexity doesn't exceed O(n^2).\"\"\"",
+    "input": "",
+    "output": "\ndef numTrees(n: int) -> int:\n    \n    G = [0] * (n + 1)\n    G[0], G[1] = 1, 1\n\n    for i in range(2, n + 1):\n        for j in range(1, i + 1):\n            G[i] += G[j - 1] * G[i - j]\n\n    return G[n]",
+    "tests": "assert numTrees(1) == 1\nassert numTrees(2) == 2\nassert numTrees(3) == 5\nassert numTrees(4) == 14\nassert numTrees(5) == 42\nassert numTrees(6) == 132\nassert numTrees(7) == 429\nassert numTrees(8) == 1430\nassert numTrees(9) == 4862\nassert numTrees(10) == 16796\nassert numTrees(11) == 58786",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 1049,
+    "instruction": "\ndef prime_factors(n):\n    \"\"\"Design a Python function that accepts a positive numerical value, no greater than 1000, and decomposes it into its unique prime factors through prime factorization. Please find the prime factor tree structure of the input integer. Consider the following sample input: num = 17.\"\"\"",
+    "input": "",
+    "output": "\ndef prime_factors(n):\n    \n    i = 2\n    factors = []\n    while i * i <= n:\n        if n % i:\n            i += 1\n        else:\n            n //= i\n            factors.append(i)\n    if n > 1:\n        factors.append(n)\n    return factors",
+    "tests": "assert prime_factors(2) == [2]\nassert prime_factors(17) == [17]\nassert prime_factors(33) == [3, 11]\nassert prime_factors(64) == [2, 2, 2, 2, 2, 2]\nassert prime_factors(97) == [97]\nassert prime_factors(100) == [2, 2, 5, 5]\nassert prime_factors(169) == [13, 13]",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 1715,
+    "instruction": "\ndef find_median(arr):\n    \"\"\"Develop a Python program which accepts an array of whole numbers as input, and calculates the median. The median must be calculated without using existing statistical libraries or functions. Additionally, the program should identify if array contains duplicate numbers.\"\"\"\n    arr.sort()\n    n = len(arr)\n    if n%2 == 0:\n        median = (arr[n//2]+arr[n//2-1])/2\n    else:\n        median = arr[n//2]\n    return median\n\ndef check_duplicates(arr):\n    \"\"\"Develop a Python program which accepts an array of whole numbers as input, and calculates the median. The median must be calculated without using existing statistical libraries or functions. Additionally, the program should identify if array contains duplicate numbers.\"\"\"",
+    "input": "",
+    "output": "\ndef find_median(arr):\n    \n    return len(arr) != len(set(arr))",
+    "tests": "assert find_median([1, 2, 3, 4, 5]) == 3\nassert find_median([1, 2, 3, 4]) == 2.5\nassert find_median([5, 4, 3, 2, 1]) == 3\nassert find_median([1, 3, 5]) == 3\nassert find_median([2, 4, 6, 8, 10, 12]) == 7\nassert find_median([10, 20, 30, 40]) == 25",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 1787,
+    "instruction": "\ndef removeDuplicateLetters(s: str) -> str:\n    \"\"\"I have this problem : Remove Duplicate Letters and Rearrange\nDescription are as below: Given a string `s`, remove duplicate letters so that every letter appears once and only once. You must make sure your result is the smallest in lexicographical order among all possible results. After removing the duplicates, rearrange the remaining letters in such a way that no two same letters are adjacent to each other. If it is not possible to rearrange the letters in such a way, return an empty string.\n\nNote: This question is an extension of 1081: https://leetcode.com/problems/smallest-subsequence-of-distinct-characters/\n\nExample 1:\nInput: s = \"bcabc\"\nOutput: \"abc\"\n\nExample 2:\nInput: s = \"cbacdcbc\"\nOutput: \"acdb\"\n\nExample 3:\nInput: s = \"aaabbb\"\nOutput: \"\"\n\nConstraints:\n`1 <= s.length <= 104`\n`s` consists of lowercase English letters.\"\"\"",
+    "input": "",
+    "output": "\ndef removeDuplicateLetters(s: str) -> str:\n    \n    last_occurrence = {c: i for i, c in enumerate(s)}\n    stack = []\n    in_stack = set()\n    \n    for i, c in enumerate(s):\n        if c not in in_stack:\n            while stack and c < stack[-1] and i < last_occurrence[stack[-1]]:\n                in_stack.remove(stack.pop())\n            stack.append(c)\n            in_stack.add(c)\n    \n    return ''.join(stack)",
+    "tests": "assert removeDuplicateLetters(\"bcabc\") == \"abc\"\nassert removeDuplicateLetters(\"cbacdcbc\") == \"acdb\"\nassert removeDuplicateLetters(\"\") == \"\"\nassert removeDuplicateLetters(\"a\") == \"a\"\nassert removeDuplicateLetters(\"ab\") == \"ab\"\nassert removeDuplicateLetters(\"leetcode\") == \"letcod\"\nassert removeDuplicateLetters(\"abcde\") == \"abcde\"\nassert removeDuplicateLetters(\"aaaaaa\")",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 7488,
+    "instruction": "\ndef find_median_sorted_arrays(nums1, nums2):\n    \"\"\"Construct a function that computes the median value derived from two sorted arrays of equal length, taking into account the possibility of arrays containing both positive and negative numbers, as well as the potential presence of duplicate values.\"\"\"",
+    "input": "",
+    "output": "\ndef find_median_sorted_arrays(nums1, nums2):\n    \n    nums = sorted(nums1 + nums2)\n    if len(nums) % 2 == 1:\n        return nums[len(nums)//2]\n    else:\n        return (nums[len(nums)//2-1] + nums[len(nums)//2]) / 2.0",
+    "tests": "assert find_median_sorted_arrays([1, 3], [2, 4]) == 2.5\nassert find_median_sorted_arrays([1, 2], [3, 4]) == 2.5\nassert find_median_sorted_arrays([1, 3], [2, 5]) == 2.5\nassert find_median_sorted_arrays([1, 2], [3, 5]) == 2.5",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 762,
+    "instruction": "\ndef is_anagram(str1, str2):\n    \"\"\"Devise a software segment capable of accepting dual word clusters instead of single lexical units and ascertain whether these collected lexicon strings form anagrams when disregarding spaces and typographical symbols. For instance, the sequences, 'funeral ceremony', 'real funny comer'.\"\"\"",
+    "input": "",
+    "output": "\ndef is_anagram(str1, str2):\n    \n    str1_list = list(str1.replace(\" \",\"\").lower())\n    str1_list.sort()\n    str2_list = list(str2.replace(\" \",\"\").lower())\n    str2_list.sort()\n\n    return (str1_list == str2_list)",
+    "tests": "assert is_anagram(\"listen\", \"silent\") == True\nassert is_anagram(\"hello\", \"world\") == False\nassert is_anagram(\"Dormitory\", \"Dirty room\") == True\nassert is_anagram(\"debit card\", \"Bad credit\") == True\nassert is_anagram(\"Tom Marvolo Riddle\", \"I am Lord Voldemort\") == True\nassert is_anagram(\"12345\", \"54321\") == True\nassert is_anagram(\"apple\", \"papel\") == True\nassert is_anagram(\"software\", \"e software\") == False",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 4973,
+    "instruction": "\ndef is_prime(n):\n    \"\"\"Write a function that filters out a given array of strings and returns only those strings that contain prime numbers. Additionally, the function should sort the strings in the order of the prime numbers they contain from smallest to largest. If a string contains more than one prime number, use the smallest one for sorting.\nUse the array of strings [\"abc13\", \"123abc\", \"abc456\", \"abc\", \"abc2359\", \"abc57\"] for your function.\"\"\"",
+    "input": "",
+    "output": "\ndef is_prime(n):\n    \n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True",
+    "tests": "assert is_prime(2) == True\nassert is_prime(1) == False\nassert is_prime(0) == False\nassert is_prime(-2) == False\nassert is_prime(17) == True\nassert is_prime(4) == False\nassert is_prime(37) == True\nassert is_prime(29) == True\nassert is_prime(97) == True\nassert is_prime(100) == False\nassert is_prime(113) == True\nassert is_prime(151) == True\nassert is_prime(199) == True\nassert is_prime(200) == False",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 2890,
+    "instruction": "\ndef check_prime(num):\n    \"\"\"Develop a program for calculating the median of an unsorted array with n numbers. Also, implement a method that checks if this median is a prime number or not.\"\"\"\n    # Check if number is less than 2 (not prime)\n    if num < 2: \n        return False\n    # Check if number is 2 (prime)\n    if num == 2: \n        return True\n    # If number is even it cannot be prime\n    if num % 2 == 0:\n        return False\n    # Check for any other factors\n    for current in range(3, int(num ** 0.5) + 1, 2):\n        if num % current == 0:\n            return False\n    return True\n\ndef calculate_median(arr):\n    \"\"\"Develop a program for calculating the median of an unsorted array with n numbers. Also, implement a method that checks if this median is a prime number or not.\"\"\"",
+    "input": "",
+    "output": "\ndef check_prime(num):\n    \n    arr.sort()\n    n = len(arr)\n    if n % 2 == 0:\n        median1 = arr[n//2]\n        median2 = arr[n//2 - 1]\n        median = (median1 + median2)/2\n    else:\n        median = arr[n//2]\n    return median",
+    "tests": "assert check_prime(0) == False\nassert check_prime(1) == False\nassert check_prime(2) == True\nassert check_prime(3) == True\nassert check_prime(4) == False\nassert check_prime(5) == True\nassert check_prime(17) == True\nassert check_prime(23) == True\nassert check_prime(25) == False\nassert check_prime(97) == True\nassert check_prime(100) == False",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 902,
+    "instruction": "\ndef merge_sort(arr):\n    \"\"\"Create a program to sort an array of integers using a Merge Sort algorithm.\narr = [6, 5, 3, 1, 8, 7, 2, 4]\"\"\"\n    if len(arr) <= 1:\n        return arr\n\n    midpoint = int(len(arr) / 2)\n    left_half, right_half = merge_sort(arr[:midpoint]), merge_sort(arr[midpoint:])\n\n    return merge(left_half, right_half)\n\n\ndef merge(left_half, right_half):\n    \"\"\"Create a program to sort an array of integers using a Merge Sort algorithm.\narr = [6, 5, 3, 1, 8, 7, 2, 4]\"\"\"",
+    "input": "",
+    "output": "\ndef merge_sort(arr):\n    \n    merged = []\n    left_index = 0\n    right_index = 0\n\n    while left_index < len(left_half) and right_index < len(right_half):\n        if left_half[left_index] < right_half[right_index]:\n            merged.append(left_half[left_index])\n            left_index += 1\n        else:\n            merged.append(right_half[right_index])\n            right_index += 1\n            \n    merged.extend(left_half[left_index:])\n    merged.extend(right_half[right_index:])\n    return merged",
+    "tests": "assert merge_sort([]) == []\nassert merge_sort([1]) == [1]\nassert merge_sort([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]\nassert merge_sort([5, 4, 3, 2, 1]) == [1, 2, 3, 4, 5]\nassert merge_sort([2, 4, 1, 3, 5]) == [1, 2, 3, 4, 5]",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 1041,
+    "instruction": "\ndef mergeSort(arr):\n    \"\"\"Put into operation a merge sort algorithm that accepts an array of whole numbers given as an input and arranges it in an order of increasing numerical value.\n[34, 19, 42, -9, 2018, 0, 105]\"\"\"",
+    "input": "",
+    "output": "\ndef mergeSort(arr):\n    \n    if len(arr) > 1:\n \n        mid = len(arr)//2\n        Left = arr[:mid]\n        Right = arr[mid:]\n \n        mergeSort(Left)\n        mergeSort(Right)\n \n        i = j = k = 0\n \n        while i < len(Left) and j < len(Right):\n            if Left[i] < Right[j]:\n                arr[k] = Left[i]\n                i += 1\n            else:\n                arr[k] = Right[j]\n                j += 1\n            k += 1\n \n        while i < len(Left):\n            arr[k] = Left[i]\n            i += 1\n            k += 1\n \n        while j < len(Right):\n            arr[k] = Right[j]\n            j += 1\n            k += 1\n    return arr",
+    "tests": "assert mergeSort([5, 2, 8, 10, 1]) == [1, 2, 5, 8, 10]\nassert mergeSort([100, 50, 25, 75, 30, 10]) == [10, 25, 30, 50, 75, 100]\nassert mergeSort([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 1709,
+    "instruction": "\ndef merge_sort(arr):\n    \"\"\"Implement a merge sort algorithm to sort the given array of integers in the ascending order.\n[2, 5, 3, 1, 4]\"\"\"\n    if len(arr) <= 1:\n        return arr\n    mid = len(arr) // 2\n    left_half = merge_sort(arr[:mid])\n    right_half = merge_sort(arr[mid:])\n    return merge(left_half, right_half)\n\ndef merge(left, right):\n    \"\"\"Implement a merge sort algorithm to sort the given array of integers in the ascending order.\n[2, 5, 3, 1, 4]\"\"\"",
+    "input": "",
+    "output": "\ndef merge_sort(arr):\n    \n    merged = []\n    while left and right:\n        if left[0] <= right[0]:\n            merged.append(left[0])\n            left = left[1:]\n        else:\n            merged.append(right[0])\n            right = right[1:]\n\n    while left:\n        merged.append(left[0])\n        left = left[1:]\n\n    while right:\n        merged.append(right[0])\n        right = right[1:]\n    return merged",
+    "tests": "assert merge_sort([]) == []\nassert merge_sort([5]) == [5]\nassert merge_sort([6, 3, 2, 1, 4, 5]) == [1, 2, 3, 4, 5, 6]\nassert merge_sort([1, 1, 1, 1]) == [1, 1, 1, 1]",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 2808,
+    "instruction": "\ndef merge_sort(arr):\n    \"\"\"Develop an algorithm in Python to sort an array of integers using the Merge Sort algorithm\n[6, 2, 5, 1, 8, 9, 0]\"\"\"\n    if len(arr) <= 1:\n        return arr\n\n    mid = len(arr) // 2\n    left_half = arr[:mid]\n    right_half = arr[mid:]\n\n    return merge(merge_sort(left_half), merge_sort(right_half))\n\ndef merge(left_half, right_half):\n    \"\"\"Develop an algorithm in Python to sort an array of integers using the Merge Sort algorithm\n[6, 2, 5, 1, 8, 9, 0]\"\"\"",
+    "input": "",
+    "output": "\ndef merge_sort(arr):\n    \n    merged = []\n    left_index = 0\n    right_index = 0\n\n    # Merge smaller elements first\n    while left_index < len(left_half) and right_index < len(right_half):\n        if left_half[left_index] < right_half[right_index]:\n            merged.append(left_half[left_index])\n            left_index += 1\n        else:\n            merged.append(right_half[right_index])\n            right_index += 1\n\n    # If there are remaining elements in either half, append them to the result\n    while left_index < len(left_half):\n        merged.append(left_half[left_index])\n        left_index += 1\n\n    while right_index < len(right_half):\n        merged.append(right_half[right_index])\n        right_index += 1\n\n    return merged",
+    "tests": "assert merge_sort([]) == []\nassert merge_sort([1]) == [1]\nassert merge_sort([3, 2, 1]) == [1, 2, 3]\nassert merge_sort([5, 4, 3, 2, 1]) == [1, 2, 3, 4, 5]\nassert merge_sort([10, 5, 15, 3, 7, 2]) == [2, 3, 5, 7, 10, 15]",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 4633,
+    "instruction": "\ndef find_palindromes(lexemes):\n    \"\"\"Consider the provided list of lexemes. Develop a function that systematically investigates the array for the presence of any palindromic words, i.e., terms that are orthographically identical when read backwards and forwards.\nlexemes = [\"racecar\", \"level\", \"tot\", \"trot\"]\"\"\"",
+    "input": "",
+    "output": "\ndef find_palindromes(lexemes):\n    \n    return [word for word in lexemes if word == word[::-1]]",
+    "tests": "assert find_palindromes([\"racecar\", \"level\", \"tot\", \"trot\"]) == [\"racecar\", \"level\", \"tot\"]\nassert find_palindromes([\"hello\", \"world\"]) == []\nassert find_palindromes([]) == []\nassert find_palindromes([\"madam\"]) == [\"madam\"]\nassert find_palindromes([\"pop\", \"radar\", \"stats\"]) == [\"pop\", \"radar\", \"stats\"]",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 7560,
+    "instruction": "\nfrom collections import defaultdict\n\ndef largestComponentSize(nums):\n    \"\"\"port this code to python:\n```kotlin\nimport java.util.*\n\nfun largestComponentSize(nums: IntArray): Int {\n    fun primes(n: Int): Int {\n        for (i in 2..(n.toDouble().pow(0.5) + 1).toInt()) {\n            if (n % i == 0) {\n                return i\n            }\n        }\n        return n\n    }\n\n    fun dfs(node: Int, visited: MutableSet<Int>, graph: MutableMap<Int, MutableSet<Int>>): Int {\n        if (visited.contains(node)) {\n            return 0\n        }\n        visited.add(node)\n        var size = 1\n        for (neighbor in graph[node]!!) {\n            size += dfs(neighbor, visited, graph)\n        }\n        return size\n    }\n\n    val graph: MutableMap<Int, MutableSet<Int>> = HashMap()\n    val visited: MutableSet<Int> = HashSet()\n\n    for (num in nums) {\n        val prime = primes(num)\n        graph.computeIfAbsent(prime) { HashSet() }.add(num)\n        if (num != prime) {\n            graph.computeIfAbsent(num) { HashSet() }.add(prime)\n        }\n    }\n\n    var count = 0\n    for (num in nums) {\n        count = maxOf(count, dfs(num, visited, graph))\n    }\n\n    return count\n}\n```\"\"\"",
+    "input": "",
+    "output": "\nfrom collections import defaultdict\n\ndef largestComponentSize(nums):\n    \n    def primes(n):\n        for i in range(2, int(n**0.5) + 1):\n            if n % i == 0:\n                return i\n        return n\n\n    def dfs(node, visited, graph):\n        if node in visited:\n            return 0\n        visited.add(node)\n        size = 1\n        for neighbor in graph[node]:\n            size += dfs(neighbor, visited, graph)\n        return size\n\n    graph = defaultdict(set)\n    visited = set()\n\n    for num in nums:\n        prime = primes(num)\n        graph[prime].add(num)\n        if num != prime:\n            graph[num].add(prime)\n\n    count = 0\n    for num in nums:\n        count = max(count, dfs(num, visited, graph))\n\n    return count",
+    "tests": "assert largestComponentSize([13, 17, 19]) == 1\nassert largestComponentSize([23, 29, 31]) == 1\nassert largestComponentSize([30, 33, 35]) == 2\nassert largestComponentSize([42, 49, 50]) == 3",
+    "task": "dolphin-coder"
+  },
+  {
+    "dataset_index": 940,
+    "instruction": "\ndef canRepresentBST(preOrder): \n    \"\"\"Write a function to check if a given array can represent a preorder traversal of a binary search tree.\n[8, 5, 1, 7, 10, 12]\"\"\"",
+    "input": "",
+    "output": "\ndef canRepresentBST(preOrder): \n    \n    stack = []\n    root = float(\"-inf\") \n\n    for value in preOrder: \n        if value < root: \n            return False\n        while(len(stack) > 0 and stack[-1] < value) : \n            root = stack.pop() \n        stack.append(value) \n\n    return True",
+    "tests": "assert canRepresentBST([1, 3, 2]) == True\nassert canRepresentBST([2, 1, 3]) == True\nassert canRepresentBST([]) == True\nassert canRepresentBST([5]) == True\nassert canRepresentBST([8, 5, 1, 7, 10, 12]) == True\nassert canRepresentBST([1, 2, 3, 4, 5]) == True",
+    "task": "Magicoder-Evol-Instruct-110K"
+  }
+]
