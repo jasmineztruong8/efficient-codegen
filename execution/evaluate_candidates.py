@@ -23,9 +23,16 @@ import io
 import contextlib
 import json
 import re
+import signal
 import traceback
 from math import comb
 from pathlib import Path
+
+EVAL_TIMEOUT_SEC = 5
+
+
+def _timeout_handler(signum, frame):
+    raise TimeoutError("Candidate timed out")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate generated code candidates.")
@@ -76,40 +83,63 @@ def evaluate_one_candidate(code: str, tests: str):
     namespace = {}
     fake_out = io.StringIO()
 
+    signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(EVAL_TIMEOUT_SEC)
     try:
-        with contextlib.redirect_stdout(fake_out), contextlib.redirect_stderr(fake_out):
-            exec(code, namespace)
-    except Exception as e:
-        return {
-            "passed": False,
-            "stage": "code_exec",
-            "error_type": type(e).__name__,
-            "error_message": str(e),
-            "traceback": traceback.format_exc(),
-            "stdout": fake_out.getvalue(),
-        }
+        try:
+            with contextlib.redirect_stdout(fake_out), contextlib.redirect_stderr(fake_out):
+                exec(code, namespace)
+        except TimeoutError:
+            return {
+                "passed": False,
+                "stage": "code_exec",
+                "error_type": "TimeoutError",
+                "error_message": f"Timed out after {EVAL_TIMEOUT_SEC}s",
+                "traceback": None,
+                "stdout": fake_out.getvalue(),
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "stage": "code_exec",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc(),
+                "stdout": fake_out.getvalue(),
+            }
 
-    try:
-        with contextlib.redirect_stdout(fake_out), contextlib.redirect_stderr(fake_out):
-            exec(tests, namespace)
-    except Exception as e:
+        try:
+            with contextlib.redirect_stdout(fake_out), contextlib.redirect_stderr(fake_out):
+                exec(tests, namespace)
+        except TimeoutError:
+            return {
+                "passed": False,
+                "stage": "tests_exec",
+                "error_type": "TimeoutError",
+                "error_message": f"Timed out after {EVAL_TIMEOUT_SEC}s",
+                "traceback": None,
+                "stdout": fake_out.getvalue(),
+            }
+        except Exception as e:
+            return {
+                "passed": False,
+                "stage": "tests_exec",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc(),
+                "stdout": fake_out.getvalue(),
+            }
+
         return {
-            "passed": False,
+            "passed": True,
             "stage": "tests_exec",
-            "error_type": type(e).__name__,
-            "error_message": str(e),
-            "traceback": traceback.format_exc(),
+            "error_type": None,
+            "error_message": None,
+            "traceback": None,
             "stdout": fake_out.getvalue(),
         }
-
-    return {
-        "passed": True,
-        "stage": "tests_exec",
-        "error_type": None,
-        "error_message": None,
-        "traceback": None,
-        "stdout": fake_out.getvalue(),
-    }
+    finally:
+        signal.alarm(0)
 
 def ensure_parent_dir(path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -190,11 +220,14 @@ def main() -> None:
         pass_at_1_scores.append(score)
     pass_at_1 = sum(pass_at_1_scores) / len(pass_at_1_scores) if pass_at_1_scores else 0.0
 
+    problems_with_passing = sum(1 for s in problem_pass_counts.values() if s["c"] > 0)
+
     print("\nDone.")
-    print(f"Problem records processed: {num_problem_records}")
-    print(f"Candidates evaluated:     {num_candidates}")
-    print(f"Candidates passed:        {num_passed}")
-    print(f"Pass@1 (unbiased):        {pass_at_1:.3f}")
+    print(f"Problem records processed:    {num_problem_records}")
+    print(f"Candidates evaluated:         {num_candidates}")
+    print(f"Candidates passed:            {num_passed}")
+    print(f"Problems with ≥1 passing:     {problems_with_passing} / {num_problem_records}")
+    print(f"Pass@1 (unbiased):            {pass_at_1:.3f}")
 
 
 if __name__ == "__main__":
