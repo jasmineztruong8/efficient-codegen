@@ -98,6 +98,11 @@ def main():
                 skip_special_tokens=True,
             )
 
+            if torch.cuda.is_available() and batch_start % (args.batch_size * 10) == 0:
+                mem_used = torch.cuda.memory_allocated() / 1e9
+                mem_total = torch.cuda.get_device_properties(0).total_memory / 1e9
+                print(f"GPU memory: {mem_used:.1f}/{mem_total:.1f} GB")
+
             # Group candidates back per problem
             for i, problem in enumerate(batch):
                 candidates = decoded[i * args.num_candidates: (i + 1) * args.num_candidates]
