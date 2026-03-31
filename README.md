@@ -9,7 +9,7 @@ Team: Jasmine Truong, Yingxin Zhang, Arnav Mahajan, Jianyi Gao
 
 ## Overview
 
-We fine-tune small language models (1–2B parameters) to generate not just correct code, but *fast* code. Standard code LLMs optimize for Pass@1; our goal is to reduce execution time of generated programs while maintaining near-baseline correctness.
+We fine-tune `Qwen2.5-Coder-1.5B-Instruct` to generate not just correct code, but *fast* code. Standard code LLMs optimize for Pass@1; our goal is to reduce execution time of generated programs while maintaining near-baseline correctness.
 
 **Approach:**
 1. Curate a clean subset of the [EffiCoder dataset](https://arxiv.org/abs/2410.10209)
