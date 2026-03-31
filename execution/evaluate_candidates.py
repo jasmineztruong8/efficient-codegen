@@ -19,13 +19,13 @@ One JSONL record per candidate evaluation.
 from __future__ import annotations
 
 import argparse
+import io
+import contextlib
 import json
 import re
 import traceback
+from math import comb
 from pathlib import Path
-from typing import Any, Dict, List
-import io
-import contextlib
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate generated code candidates.")
@@ -122,6 +122,8 @@ def main() -> None:
     num_problem_records = 0
     num_candidates = 0
     num_passed = 0
+    # track per-problem pass counts for Pass@k estimation
+    problem_pass_counts: dict[int, dict] = {}  # idx -> {n, c}
 
     with open(args.input_path, "r", encoding="utf-8") as in_f, open(
         args.output_path, "w", encoding="utf-8"
@@ -143,6 +145,8 @@ def main() -> None:
                 print(f"Warning: dataset_index={dataset_index} has non-list candidates field")
                 continue
 
+            problem_pass_counts[dataset_index] = {"n": len(candidates), "c": 0}
+
             for candidate_id, raw_candidate in enumerate(candidates):
                 num_candidates += 1
 
@@ -153,6 +157,7 @@ def main() -> None:
 
                 if result["passed"]:
                     num_passed += 1
+                    problem_pass_counts[dataset_index]["c"] += 1
 
                 out_record = {
                     "dataset_index": dataset_index,
@@ -176,10 +181,20 @@ def main() -> None:
                 f"candidates={len(candidates)}"
             )
 
+    # Compute Pass@1 using the unbiased estimator: 1 - C(n-c, k) / C(n, k)
+    k = 1
+    pass_at_1_scores = []
+    for stats in problem_pass_counts.values():
+        n, c = stats["n"], stats["c"]
+        score = 1.0 if n - c < k else 1 - comb(n - c, k) / comb(n, k)
+        pass_at_1_scores.append(score)
+    pass_at_1 = sum(pass_at_1_scores) / len(pass_at_1_scores) if pass_at_1_scores else 0.0
+
     print("\nDone.")
     print(f"Problem records processed: {num_problem_records}")
     print(f"Candidates evaluated:     {num_candidates}")
     print(f"Candidates passed:        {num_passed}")
+    print(f"Pass@1 (unbiased):        {pass_at_1:.3f}")
 
 
 if __name__ == "__main__":
