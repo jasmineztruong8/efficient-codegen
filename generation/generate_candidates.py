@@ -157,7 +157,7 @@ def main():
                 "instruction": problem["instruction"],
                 "input": problem.get("input", ""),
                 "tests": problem["tests"],
-                "reference_output": problem["reference_output"],
+                "reference_output": problem.get("reference_output") or problem.get("output", ""),
                 "function_name": problem.get("function_name"),
                 "candidates": candidates,
             }

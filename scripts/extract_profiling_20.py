@@ -1,4 +1,4 @@
-# scripts/extract_selected_20.py
+# scripts/extract_profiling_20.py
 ''' 
 Extracts or restructures exactly 20 candidates per problem.
 	Ensures consistency across dataset

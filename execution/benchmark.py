@@ -1,4 +1,4 @@
-# execution/run_code_subprocess.py
+# execution/benchmark.py
 '''
 Executes code in isolated subprocesses with timing.
 Measures:
@@ -76,17 +76,29 @@ def benchmark_record(record: dict, repeats: int = 7) -> dict:
         "error": None,
     }
     
-def main():
+def parse_args():
+    import argparse
     _root = Path(__file__).parent.parent
-    input_path = _root / "data/curated/prototyping/prototype_clean_20.json"
-    output_path = _root / "data/curated/prototyping/prototype_clean_20_results.json"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=str, required=True, help="Path to candidates json")
+    parser.add_argument("--output", type=str, required=True, help="Path to write benchmark results json")
+    parser.add_argument("--repeats", type=int, default=7, help="Number of timed runs per candidate")
+    return parser.parse_args()
 
+
+def main():
+    args = parse_args()
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     results = []
-    for rec in data:
-        result = benchmark_record(rec, repeats=7)
+    total = len(data)
+    for i, rec in enumerate(data, 1):
+        result = benchmark_record(rec, repeats=args.repeats)
         merged = {
             "dataset_index": rec["dataset_index"],
             "instruction": rec["instruction"],
@@ -95,7 +107,7 @@ def main():
         results.append(merged)
 
         print(
-            f"idx={rec['dataset_index']} "
+            f"[{i}/{total}] idx={rec['dataset_index']} "
             f"passed={result['passed']} "
             f"median={result['median_runtime_sec']}"
         )

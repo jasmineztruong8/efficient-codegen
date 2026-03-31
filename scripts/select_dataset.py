@@ -1,19 +1,18 @@
-# scripts/select_prototype_problems.py
+# scripts/select_dataset.py
 '''
-Selects a small subset of problems from the raw EffiCoder dataset.
+Selects a subset of problems from the raw EffiCoder dataset.
         Input: data/raw/efficoder.json
-        Output: initial prototype problem set
-        Purpose: reduce dataset size for fast prototyping
+        Output: initial candidate set for benchmarking
+        Purpose: filter and score problems for the data pipeline
 '''
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
-INPUT_PATH = _ROOT / "data/raw/efficoder.json"
-OUTPUT_PATH = _ROOT / "data/curated/prototyping/prototype_candidates.json"
 
 # Good prototype themes for runtime-aware code generation
 GOOD_KEYWORDS = {
@@ -127,8 +126,27 @@ def is_reasonable(record: dict) -> bool:
     return True
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=str, default=str(_ROOT / "data/raw/efficoder.json"), help="Path to raw dataset")
+    parser.add_argument("--limit", type=int, default=None, help="Max candidates to keep (default: no limit, takes all passing)")
+    parser.add_argument("--output", type=str, default=None, help="Output path (default: auto-derived from --limit)")
+    return parser.parse_args()
+
+
 def main() -> None:
-    with INPUT_PATH.open("r", encoding="utf-8") as f:
+    args = parse_args()
+
+    input_path = Path(args.input)
+
+    if args.output:
+        output_path = Path(args.output)
+    elif args.limit:
+        output_path = _ROOT / f"data/curated/scale{args.limit}/candidates_{args.limit}.json"
+    else:
+        output_path = _ROOT / "data/curated/scale_full/candidates_full.json"
+
+    with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     candidates = []
@@ -156,13 +174,13 @@ def main() -> None:
     # Highest score first
     candidates.sort(key=lambda x: (-x["score"], x["dataset_index"]))
 
-    # Keep a slightly bigger shortlist for manual review
-    shortlist = candidates[:80]
+    shortlist = candidates[:args.limit] if args.limit else candidates
 
-    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(shortlist, f, indent=2, ensure_ascii=False)
 
-    print(f"Saved {len(shortlist)} candidates to {OUTPUT_PATH}")
+    print(f"Saved {len(shortlist)} candidates to {output_path}")
 
 
 if __name__ == "__main__":
