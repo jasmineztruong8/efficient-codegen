@@ -49,6 +49,12 @@ def parse_args() -> argparse.Namespace:
         help="Number of examples to profile",
     )
     parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=8,
+        help="Number of prompts per batch (matches generate_candidates.py default)",
+    )
+    parser.add_argument(
         "--max_new_tokens",
         type=int,
         default=128,
@@ -129,6 +135,7 @@ def main() -> None:
             config={
                 "model_name": args.model_name,
                 "limit": args.limit,
+                "batch_size": args.batch_size,
                 "max_new_tokens": args.max_new_tokens,
                 "temperature": args.temperature,
                 "top_p": args.top_p,
@@ -152,6 +159,7 @@ def main() -> None:
     model.eval()
 
     prompts = [build_prompt(ex) for ex in examples]
+    batches = [prompts[i : i + args.batch_size] for i in range(0, len(prompts), args.batch_size)]
 
     latencies = []
     input_lengths = []
@@ -163,14 +171,19 @@ def main() -> None:
 
     with profile(
         activities=activities,
-        schedule=schedule(wait=1, warmup=1, active=3),
+        schedule=schedule(wait=0, warmup=0, active=1),
         on_trace_ready=tensorboard_trace_handler(args.trace_dir, worker_name="worker0"),
         record_shapes=True,
         profile_memory=True,
         with_stack=False,
     ) as prof:
-        for step, prompt in enumerate(prompts):
-            inputs = tokenizer(prompt, return_tensors="pt")
+        for step, batch_prompts in enumerate(batches):
+            inputs = tokenizer(
+                batch_prompts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+            )
             input_len = inputs["input_ids"].shape[1]
 
             if device == "cuda":
@@ -196,6 +209,7 @@ def main() -> None:
 
             latency = end - start
             output_len = outputs.shape[1] - input_len
+            total_new_tokens = output_len * len(batch_prompts)
 
             latencies.append(latency)
             input_lengths.append(input_len)
@@ -204,8 +218,10 @@ def main() -> None:
             prof.step()
 
             print(
-                f"[{step + 1}/{len(prompts)}] "
-                f"input_len={input_len} output_len={output_len} latency={latency:.4f}s"
+                f"[batch {step + 1}/{len(batches)}] "
+                f"batch_size={len(batch_prompts)} "
+                f"input_len={input_len} output_len={output_len} "
+                f"latency={latency:.4f}s tok/s={total_new_tokens / latency:.1f}"
             )
 
     avg_latency = sum(latencies) / len(latencies) if latencies else None
