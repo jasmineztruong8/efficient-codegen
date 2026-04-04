@@ -218,7 +218,11 @@ data/curated/scale_full/candidates_full.json
 
 # logs
 logs/
-outputs/
+
+# outputs — ignore intermediate files, keep final results
+outputs/*_smoke.jsonl
+outputs/evaluated_candidates_*.jsonl
+outputs/passing_candidates_*.jsonl
 
 # python
 __pycache__/

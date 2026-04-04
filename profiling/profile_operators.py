@@ -22,6 +22,7 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -31,8 +32,6 @@ from torch.profiler import (
     ProfilerActivity,
     profile,
     record_function,
-    schedule,
-    tensorboard_trace_handler,
 )
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -56,6 +55,9 @@ def parse_args() -> argparse.Namespace:
                    help="How many operators to print/save in the table")
     p.add_argument("--decode_steps_to_trace", type=int, default=5,
                    help="How many individual decode steps to annotate with record_function")
+    p.add_argument("--batch_size", type=int, default=1,
+                   help="Number of prompts to process simultaneously. "
+                        "Larger values improve GPU utilization (T4/G4 recommendation).")
     return p.parse_args()
 
 
@@ -125,13 +127,17 @@ def generate_with_annotations(
         past_key_values = out.past_key_values
         logits = out.logits[:, -1, :]  # (B, V)
 
-    # sample first token
-    next_token = _sample(logits, temperature, top_p)
+    # sample first token for each item in the batch
+    next_token = _sample(logits, temperature, top_p)          # (B, 1)
     generated = torch.cat([generated, next_token], dim=-1)
     cur_attn = torch.cat([cur_attn, torch.ones_like(next_token)], dim=-1)
+    finished = (next_token.squeeze(-1) == tokenizer.eos_token_id)  # (B,)
 
     # ---- decode steps ---------------------------------------------------
     for step in range(1, max_new_tokens):
+        if finished.all():
+            break
+
         label = f"decode_step_{step}" if step <= decode_steps_to_trace else "decode_remaining"
         with record_function(label):
             with torch.no_grad():
@@ -144,12 +150,13 @@ def generate_with_annotations(
             past_key_values = out.past_key_values
             logits = out.logits[:, -1, :]
 
-        next_token = _sample(logits, temperature, top_p)
+        next_token = _sample(logits, temperature, top_p)      # (B, 1)
+        # mask finished sequences so they emit pad tokens (no effect on output)
+        next_token[finished] = tokenizer.pad_token_id
+        finished |= (next_token.squeeze(-1) == tokenizer.eos_token_id)
+
         generated = torch.cat([generated, next_token], dim=-1)
         cur_attn = torch.cat([cur_attn, torch.ones_like(next_token)], dim=-1)
-
-        if next_token.item() == tokenizer.eos_token_id:
-            break
 
     return generated
 
@@ -183,7 +190,7 @@ _LINEAR_OPS = {"aten::linear", "aten::mm", "aten::addmm", "aten::matmul"}
 _MEMORY_OPS = {"aten::to", "aten::copy_", "aten::contiguous", "aten::clone"}
 
 
-def analyze_bottlenecks(key_avgs, top_n: int, device: str) -> str:
+def analyze_bottlenecks(key_avgs, top_n: int, device: str, time_key: str = "") -> str:
     """
     Walk the key_averages list and produce a human-readable bottleneck report
     with concrete optimization suggestions.
@@ -194,19 +201,21 @@ def analyze_bottlenecks(key_avgs, top_n: int, device: str) -> str:
     lines.append("=" * 72)
 
     use_cuda = device == "cuda"
-    time_key = "cuda_time_total" if use_cuda else "cpu_time_total"
+    if not time_key:
+        time_key = "cuda_time_total" if use_cuda else "cpu_time_total"
 
     # Sort by CUDA (or CPU) self-time
     sorted_ops = sorted(key_avgs, key=lambda e: getattr(e, time_key, 0), reverse=True)
     total_time = sum(getattr(e, time_key, 0) for e in sorted_ops) or 1
 
     # ---- Top-N table -----
-    lines.append(f"\nTop {top_n} operators by {'CUDA' if use_cuda else 'CPU'} self-time:\n")
+    time_label = "CUDA" if time_key == "cuda_time_total" else "CPU"
+    lines.append(f"\nTop {top_n} operators by {time_label} self-time:\n")
     header = f"{'Operator':<55} {'CUDA ms':>10} {'CPU ms':>10} {'Calls':>8} {'% total':>8}"
     lines.append(header)
     lines.append("-" * len(header))
     for e in sorted_ops[:top_n]:
-        cuda_ms = e.cuda_time_total / 1e3 if use_cuda else 0.0
+        cuda_ms = getattr(e, "cuda_time_total", 0) / 1e3
         cpu_ms = e.cpu_time_total / 1e3
         pct = getattr(e, time_key, 0) / total_time * 100
         lines.append(
@@ -387,34 +396,43 @@ def main() -> None:
     if device == "cuda":
         activities.append(ProfilerActivity.CUDA)
 
-    # Build profiler kwargs; with_flops available in PyTorch >= 1.12
+    # No schedule: record all steps continuously so key_averages() sees the full
+    # data after the context manager exits (a schedule resets events after each
+    # active window, leaving key_averages() empty).
+    # TensorBoard export is triggered manually after profiling instead.
     profiler_kwargs: Dict[str, Any] = dict(
         activities=activities,
-        schedule=schedule(wait=0, warmup=1, active=len(prompts) - 1),
-        on_trace_ready=tensorboard_trace_handler(str(tb_dir), worker_name="worker0"),
         record_shapes=True,
         profile_memory=True,
-        with_stack=True,
+        with_stack=False,  # with_stack=True interferes with CUDA timing attribution
     )
     try:
         profiler_kwargs["with_flops"] = True
     except TypeError:
         pass  # older PyTorch
 
-    print(f"Profiling {len(prompts)} example(s)...\n")
+    # Group prompts into batches
+    bs = args.batch_size
+    batches = [prompts[i : i + bs] for i in range(0, len(prompts), bs)]
+    print(f"Profiling {len(prompts)} example(s) in {len(batches)} batch(es) of up to {bs}...\n")
 
     with profile(**profiler_kwargs) as prof:
-        for step, prompt in enumerate(prompts):
-            # Tokenise
+        for step, batch_prompts in enumerate(batches):
+            # Tokenise with padding so all sequences in a batch are the same length
             with record_function("tokenization"):
-                enc = tokenizer(prompt, return_tensors="pt")
+                enc = tokenizer(
+                    batch_prompts,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                )
 
             # Host → device transfer
             with record_function("host_to_device"):
                 if device == "cuda":
                     enc = {k: v.to(device) for k, v in enc.items()}
 
-            input_ids     = enc["input_ids"]
+            input_ids      = enc["input_ids"]
             attention_mask = enc.get("attention_mask", torch.ones_like(input_ids))
 
             if device == "cuda":
@@ -438,24 +456,40 @@ def main() -> None:
 
             input_len  = input_ids.shape[1]
             output_len = generated.shape[1] - input_len
+            total_new_tokens = output_len * input_ids.shape[0]
             print(
-                f"[{step + 1}/{len(prompts)}]  "
+                f"[batch {step + 1}/{len(batches)}]  "
+                f"batch_size={input_ids.shape[0]}  "
                 f"input_len={input_len}  output_len={output_len}  "
                 f"latency={t1 - t0:.3f}s  "
-                f"tok/s={output_len / (t1 - t0):.1f}"
+                f"tok/s={total_new_tokens / (t1 - t0):.1f}"
             )
 
             prof.step()
 
     # ---- Export Chrome trace ----
+    # kineto_results.save() can only be called once, so export_chrome_trace is
+    # called first, then the file is copied to the TensorBoard directory with
+    # the *.pt.trace.json filename pattern that TensorBoard's profiler plugin expects.
     chrome_path = str(out_dir / "chrome_trace.json")
     prof.export_chrome_trace(chrome_path)
     print(f"\nChrome trace saved → {chrome_path}")
     print("  View at: ui.perfetto.dev  or  chrome://tracing")
 
+    # ---- Copy to TensorBoard directory ----
+    tb_filename = f"worker0.{int(time.time() * 1000)}.pt.trace.json"
+    shutil.copy(chrome_path, str(tb_dir / tb_filename))
+    print(f"TensorBoard trace  → {tb_dir / tb_filename}")
+
     # ---- Operator table ----
-    key_avgs = prof.key_averages(group_by_input_shape=True)
-    time_key = "cuda_time_total" if device == "cuda" else "cpu_time_total"
+    key_avgs = prof.key_averages(group_by_input_shape=False)
+    # Use CUDA times only if they are actually populated (some PyTorch builds report 0)
+    has_cuda_times = any(getattr(e, "cuda_time_total", 0) > 0 for e in key_avgs)
+    time_key = "cuda_time_total" if (device == "cuda" and has_cuda_times) else "cpu_time_total"
+    if device == "cuda" and not has_cuda_times:
+        print("\nNote: CUDA times are zero — reporting CPU times instead. "
+              "This is normal when CUDA kernels run asynchronously and attribution "
+              "is unavailable in this PyTorch build.")
     sorted_ops = sorted(key_avgs, key=lambda e: getattr(e, time_key, 0), reverse=True)
 
     csv_path = str(out_dir / "operators.csv")
@@ -466,16 +500,16 @@ def main() -> None:
         for e in sorted_ops[: args.top_ops]:
             writer.writerow([
                 e.key,
-                f"{e.cuda_time_total / 1e3:.4f}",
+                f"{getattr(e, 'cuda_time_total', 0) / 1e3:.4f}",
                 f"{e.cpu_time_total / 1e3:.4f}",
                 e.count,
-                f"{e.cuda_memory_usage / 1e6:.4f}" if hasattr(e, "cuda_memory_usage") else "N/A",
-                f"{e.self_cuda_time_total / 1e3:.4f}" if hasattr(e, "self_cuda_time_total") else "N/A",
+                f"{getattr(e, 'cuda_memory_usage', 0) / 1e6:.4f}",
+                f"{getattr(e, 'self_cuda_time_total', 0) / 1e3:.4f}",
             ])
     print(f"Operator CSV saved  → {csv_path}")
 
     # ---- Bottleneck report ----
-    report = analyze_bottlenecks(key_avgs, top_n=args.top_ops, device=device)
+    report = analyze_bottlenecks(key_avgs, top_n=args.top_ops, device=device, time_key=time_key)
     print("\n" + report)
 
     report_path = str(out_dir / "bottleneck_report.txt")
