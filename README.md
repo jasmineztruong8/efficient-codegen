@@ -48,7 +48,8 @@ efficient-codegen/
 │   ├── filter_passing_candidates.py# Keep only passing candidates
 │   └── benchmark_candidates.py     # Time passing candidates (repeated runs, median)
 ├── profiling/
-│   └── profile_model.py            # PyTorch Profiler + WandB logging
+│   ├── profile_model.py            # PyTorch Profiler + WandB logging (high-level metrics)
+│   └── profile_operators.py        # Operator-level trace with bottleneck analysis
 └── notebooks/
     └── prototype_pipeline_colab.ipynb  # Full Colab pipeline (generation → benchmark)
 ```
@@ -89,7 +90,7 @@ bash scripts/run_pipeline_20.sh    # → data/curated/prototyping/prototype_fina
 
 ## Generation + Profiling (Colab)
 
-Open `notebooks/prototype_pipeline_colab.ipynb` in Google Colab. Use an A100 or H100 for generation (1k × 5 candidates is slow on smaller GPUs). T4/L4 is sufficient for profiling only.
+Open `notebooks/prototype_pipeline_colab.ipynb` in Google Colab. Use a G4 (NVIDIA RTX PRO 6000 Blackwell, 94GB) or A100 for generation. T4/L4 is sufficient for profiling only.
 
 The notebook covers:
 1. Environment setup and repo clone
@@ -99,6 +100,8 @@ The notebook covers:
 5. Filter passing candidates
 6. Runtime benchmarking of passing candidates
 7. PyTorch Profiler run with WandB logging
+
+**Recommended batch size:** `--batch_size 64` on G4 (improves GPU utilization from 34% → 52% vs batch=8)
 
 **Required Colab secrets:** `GITHUB_TOKEN`, `WANDB_API_KEY`
 
@@ -114,7 +117,37 @@ The notebook covers:
 | `generation/generate_candidates.py` | Generate candidate solutions | `--input_path`, `--num_candidates`, `--model_name`, `--limit` |
 | `execution/evaluate_candidates.py` | Check candidate correctness | `--input_path`, `--output_path`, `--limit` |
 | `execution/benchmark_candidates.py` | Time passing candidates | `--input_path`, `--output_path`, `--num_runs`, `--warmup_runs` |
-| `profiling/profile_model.py` | PyTorch Profiler + WandB | `--input_path`, `--limit`, `--use_wandb` |
+| `profiling/profile_model.py` | PyTorch Profiler + WandB | `--input_path`, `--limit`, `--batch_size`, `--use_wandb` |
+| `profiling/profile_operators.py` | Operator-level trace, bottleneck report, Chrome trace | `--input_path`, `--limit`, `--batch_size`, `--output_dir` |
+
+---
+
+## Profiling Results (Baseline)
+
+Profiled on NVIDIA RTX PRO 6000 Blackwell (94GB, CC 12.0) using `Qwen2.5-Coder-1.5B-Instruct` in bfloat16.
+
+### batch_size=8 vs batch_size=64
+
+| Metric | batch=8 | batch=64 |
+|--------|---------|---------|
+| GPU Utilization | 34.33% | 52.09% |
+| Est. SM Efficiency | 17.8% | 43.19% |
+| Est. Achieved Occupancy | 9.74% | 31.81% |
+| Kernel share of step time | 34.3% | 52.15% |
+| CPU Exec share of step time | 53.6% | 39.46% |
+| Tensor Core utilization | ~1% | ~6.6% |
+
+### Key bottlenecks identified
+
+1. **CPU-bound autoregressive decode loop** — at batch=8, 53.6% of step time is CPU execution (Python dispatch overhead per token). Reduced to 39.5% at batch=64 but remains the dominant bottleneck.
+2. **Low SM occupancy** — at batch=8, GEMM M-dimension is too small (M=8) to fill GPU tiles. At batch=64 occupancy improves to 31.81% but Tensor Cores remain underutilized.
+3. **No data-loading bottleneck** — tokenization (<5ms per batch) and H2D transfer are negligible.
+
+### Proposed optimizations
+- `torch.compile(model, mode='reduce-overhead')` — eliminate Python dispatch overhead in decode loop
+- batch_size ≥ 64 for inference — already validated above
+
+Full operator-level trace: `outputs/operator_profile/bottleneck_report.txt`
 
 ---
 
