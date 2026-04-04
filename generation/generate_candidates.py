@@ -22,10 +22,23 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-def build_prompt(instruction: str, input_content: str) -> str:
+# Keep this prompt identical to the one used in training/select_training_data.py
+# and training/train.py so that inference format matches training format.
+SYSTEM_PROMPT = (
+    "Write a correct Python solution optimized for fast execution time. "
+    "Use efficient algorithms and data structures to minimize runtime. "
+    "Return only the code with no explanation."
+)
+
+
+def build_messages(instruction: str, input_content: str) -> list:
+    content = instruction
     if input_content:
-        return f"Instruction: {instruction}\nInput: {input_content}\nOutput:"
-    return f"Instruction: {instruction}\nOutput:"
+        content += f"\n\nInput:\n{input_content}"
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": content},
+    ]
 
 
 def main():
@@ -69,7 +82,14 @@ def main():
     with open(output_path, "w", encoding="utf-8") as outfile, torch.inference_mode():
         for batch_start in tqdm(range(0, len(problems), args.batch_size), desc="Generating"):
             batch = problems[batch_start: batch_start + args.batch_size]
-            prompts = [build_prompt(p["instruction"], p.get("input", "")) for p in batch]
+            prompts = [
+                tokenizer.apply_chat_template(
+                    build_messages(p["instruction"], p.get("input", "")),
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                for p in batch
+            ]
 
             inputs = tokenizer(
                 prompts,
