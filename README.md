@@ -34,7 +34,6 @@ efficient-codegen/
 │   ├── filter_passing.py           # Keep only problems whose reference solution passes tests
 │   ├── expand_candidates.py        # Expand a base set with additional candidates (prototyping)
 │   ├── merge_candidates.py         # Merge base + expansion batch (prototyping)
-│   ├── extract_profiling_20.py     # Extract fixed 20-sample profiling set (legacy)
 │   ├── review_candidates.py        # Inspect candidate scores (utility)
 │   ├── quick_check.py              # Sanity check dataset (utility)
 │   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.9k
