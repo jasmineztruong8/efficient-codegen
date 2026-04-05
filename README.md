@@ -34,7 +34,6 @@ efficient-codegen/
 │   ├── filter_passing.py           # Keep only problems whose reference solution passes tests
 │   ├── expand_candidates.py        # Expand a base set with additional candidates (prototyping)
 │   ├── merge_candidates.py         # Merge base + expansion batch (prototyping)
-│   ├── extract_profiling_20.py     # Extract fixed 20-sample profiling set (legacy)
 │   ├── review_candidates.py        # Inspect candidate scores (utility)
 │   ├── quick_check.py              # Sanity check dataset (utility)
 │   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.9k
@@ -50,6 +49,10 @@ efficient-codegen/
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + WandB logging (high-level metrics)
 │   └── profile_operators.py        # Operator-level trace with bottleneck analysis
+├── outputs/
+│   ├── generated_candidates_full.jsonl   # 6,646 problems × 5 candidates (committed)
+│   ├── evaluated_candidates_full.jsonl   # Pass/fail per candidate (committed)
+│   └── benchmarked_candidates_full.jsonl # Median runtime for passing candidates (committed)
 └── notebooks/
     └── prototype_pipeline_colab.ipynb  # Full Colab pipeline (generation → benchmark)
 ```
@@ -148,6 +151,21 @@ Profiled on NVIDIA RTX PRO 6000 Blackwell (94GB, CC 12.0) using `Qwen2.5-Coder-1
 - batch_size ≥ 64 for inference — already validated above
 
 Full operator-level trace: `outputs/operator_profile/bottleneck_report.txt`
+
+---
+
+## Outputs
+
+Key output files committed to the repo (generated on G4/Colab using `Qwen2.5-Coder-1.5B-Instruct`):
+
+| File | Description |
+|------|-------------|
+| `outputs/generated_candidates_full.jsonl` | 6,646 problems × 5 candidates = 33,230 generated solutions |
+| `outputs/evaluated_candidates_full.jsonl` | Pass/fail result for each candidate (Pass@1=34.2%, Pass@5=46.0%) |
+| `outputs/benchmarked_candidates_full.jsonl` | Median runtime for each passing candidate (7 runs, 1 warmup) |
+
+Intermediate files (gitignored, re-derivable):
+- `outputs/passing_candidates_full.jsonl` — filtered subset of evaluated, passing only
 
 ---
 
