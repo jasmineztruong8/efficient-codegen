@@ -221,7 +221,6 @@ logs/
 
 # outputs — ignore intermediate files, keep final results
 outputs/*_smoke.jsonl
-outputs/evaluated_candidates_*.jsonl
 outputs/passing_candidates_*.jsonl
 
 # python

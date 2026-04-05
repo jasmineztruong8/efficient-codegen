@@ -98,7 +98,7 @@ def evaluate_one_candidate(code: str, tests: str):
                 "traceback": None,
                 "stdout": fake_out.getvalue(),
             }
-        except Exception as e:
+        except BaseException as e:
             return {
                 "passed": False,
                 "stage": "code_exec",
@@ -120,7 +120,7 @@ def evaluate_one_candidate(code: str, tests: str):
                 "traceback": None,
                 "stdout": fake_out.getvalue(),
             }
-        except Exception as e:
+        except BaseException as e:
             return {
                 "passed": False,
                 "stage": "tests_exec",
