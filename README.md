@@ -50,6 +50,10 @@ efficient-codegen/
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + WandB logging (high-level metrics)
 │   └── profile_operators.py        # Operator-level trace with bottleneck analysis
+├── outputs/
+│   ├── generated_candidates_full.jsonl   # 6,646 problems × 5 candidates (committed)
+│   ├── evaluated_candidates_full.jsonl   # Pass/fail per candidate (committed)
+│   └── benchmarked_candidates_full.jsonl # Median runtime for passing candidates (committed)
 └── notebooks/
     └── prototype_pipeline_colab.ipynb  # Full Colab pipeline (generation → benchmark)
 ```
