@@ -1,0 +1,23 @@
+# Python deps for efficient-codegen (generation, execution, profiling, training, eval).
+#
+# PyTorch: install the wheel that matches your platform (CUDA vs CPU) from
+#   https://pytorch.org/get-started/locally/
+# then:
+#   pip install -r requirements.txt
+#
+# Notes:
+# - bitsandbytes + train.py qLoRA path expect NVIDIA CUDA. On Apple Silicon / CPU-only,
+#   run generation/eval/benchmark locally and run training/train.py on a CUDA machine or Colab.
+# - wandb is optional; omit or uninstall if you do not use --use_wandb.
+
+torch>=2.1.0
+transformers>=4.43.0
+datasets>=2.19.0
+accelerate>=0.30.0
+peft>=0.11.0
+bitsandbytes>=0.43.0
+trl>=0.9.0
+wandb>=0.16.0
+tqdm>=4.66.0
+tensorboard>=2.14.0
+torch-tb-profiler>=0.4.0
