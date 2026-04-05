@@ -43,9 +43,8 @@ from transformers import (
     AutoTokenizer,
     BitsAndBytesConfig,
     TrainerCallback,
-    TrainingArguments,
 )
-from trl import SFTTrainer
+from trl import SFTConfig, SFTTrainer
 
 # Must match SYSTEM_PROMPT in generation/generate_candidates.py and
 # training/select_training_data.py so training format == inference format.
@@ -194,7 +193,7 @@ def main() -> None:
     train_dataset = load_dataset(args.data_path, tokenizer, args.max_seq_length, args.limit)
     print(f"Training on {len(train_dataset)} examples  (mode={args.mode})")
 
-    training_args = TrainingArguments(
+    training_args = SFTConfig(
         output_dir=args.output_dir,
         num_train_epochs=args.num_train_epochs,
         per_device_train_batch_size=args.per_device_train_batch_size,
@@ -209,6 +208,8 @@ def main() -> None:
         save_strategy="epoch",
         report_to="wandb" if args.use_wandb else "none",
         run_name=f"efficient-codegen-{args.mode}" if args.use_wandb else None,
+        dataset_text_field="text",
+        max_length=args.max_seq_length,
     )
 
     # --- Profiling setup ---
@@ -244,10 +245,8 @@ def main() -> None:
 
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=train_dataset,
-        dataset_text_field="text",
-        max_seq_length=args.max_seq_length,
         peft_config=lora_config,
         args=training_args,
         callbacks=callbacks if callbacks else None,
