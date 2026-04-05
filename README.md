@@ -151,6 +151,21 @@ Full operator-level trace: `outputs/operator_profile/bottleneck_report.txt`
 
 ---
 
+## Outputs
+
+Key output files committed to the repo (generated on G4/Colab using `Qwen2.5-Coder-1.5B-Instruct`):
+
+| File | Description |
+|------|-------------|
+| `outputs/generated_candidates_full.jsonl` | 6,646 problems × 5 candidates = 33,230 generated solutions |
+| `outputs/evaluated_candidates_full.jsonl` | Pass/fail result for each candidate (Pass@1=34.2%, Pass@5=46.0%) |
+| `outputs/benchmarked_candidates_full.jsonl` | Median runtime for each passing candidate (7 runs, 1 warmup) |
+
+Intermediate files (gitignored, re-derivable):
+- `outputs/passing_candidates_full.jsonl` — filtered subset of evaluated, passing only
+
+---
+
 ## Experiment Tracking
 
 WandB project: [hpml-efficient-codegen](https://wandb.ai/yz3202-columbia-university/hpml-efficient-codegen)
