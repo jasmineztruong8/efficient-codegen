@@ -84,6 +84,12 @@ def parse_args() -> argparse.Namespace:
         help="W&B project name",
     )
     parser.add_argument(
+        "--wandb_entity",
+        type=str,
+        default="efficient-codegen",
+        help="W&B team/entity name",
+    )
+    parser.add_argument(
         "--wandb_run_name",
         type=str,
         default="prototype-profiler",
@@ -131,6 +137,7 @@ def main() -> None:
     if args.use_wandb:
         wandb.init(
             project=args.wandb_project,
+            entity=args.wandb_entity,
             name=args.wandb_run_name,
             config={
                 "model_name": args.model_name,

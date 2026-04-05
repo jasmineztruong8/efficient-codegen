@@ -131,23 +131,27 @@ Profiled on NVIDIA RTX PRO 6000 Blackwell (94GB, CC 12.0) using `Qwen2.5-Coder-1
 
 ### batch_size=8 vs batch_size=64
 
+Profiled on 20 samples (batch=8) and 320 samples / 5 batches (batch=64).
+
 | Metric | batch=8 | batch=64 |
 |--------|---------|---------|
-| GPU Utilization | 34.33% | 52.09% |
-| Est. SM Efficiency | 17.8% | 43.19% |
-| Est. Achieved Occupancy | 9.74% | 31.81% |
-| Kernel share of step time | 34.3% | 52.15% |
-| CPU Exec share of step time | 53.6% | 39.46% |
-| Tensor Core utilization | ~1% | ~6.6% |
+| GPU Utilization | 34.33% | 42.71% |
+| Est. SM Efficiency | 17.8% | 35.37% |
+| Est. Achieved Occupancy | 9.74% | 31.73% |
+| Kernel share of step time | 34.3% | 42.76% |
+| CPU Exec share of step time | 53.6% | 50.86% |
+| Tensor Core utilization | ~1% | ~6.7% |
 
 ### Key bottlenecks identified
 
-1. **CPU-bound autoregressive decode loop** — at batch=8, 53.6% of step time is CPU execution (Python dispatch overhead per token). Reduced to 39.5% at batch=64 but remains the dominant bottleneck.
-2. **Low SM occupancy** — at batch=8, GEMM M-dimension is too small (M=8) to fill GPU tiles. At batch=64 occupancy improves to 31.81% but Tensor Cores remain underutilized.
-3. **No data-loading bottleneck** — tokenization (<5ms per batch) and H2D transfer are negligible.
+1. **CPU-bound autoregressive decode loop** — CPU execution accounts for 50.9% of step time at batch=64. `cudaLaunchKernel` is called 811k times across 5 batches, indicating high Python dispatch overhead per token.
+2. **Per-token CPU-GPU synchronizations** — `aten::item` and `cudaStreamSynchronize` account for 17.8% of total profiled time (2,550 calls), triggered by EOS token detection inside the generate loop.
+3. **Low Tensor Core utilization** — only 6.7% of kernel time uses Tensor Cores despite bfloat16. During decode, M-dimension equals batch size (64), which is too small to saturate Tensor Core tiles.
+4. **No data-loading bottleneck** — tokenization (<5ms per batch) and H2D transfer are negligible.
 
 ### Proposed optimizations
-- `torch.compile(model, mode='reduce-overhead')` — eliminate Python dispatch overhead in decode loop
+- `torch.compile(model, mode='reduce-overhead')` — fuses elementwise ops, eliminates Python dispatch overhead in decode loop
+- `synced_gpus=False` in `model.generate()` — reduces unnecessary CPU-GPU syncs during EOS detection
 - batch_size ≥ 64 for inference — already validated above
 
 Full operator-level trace: `outputs/operator_profile/bottleneck_report.txt`
