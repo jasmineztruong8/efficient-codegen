@@ -1,0 +1,202 @@
+[
+  {
+    "dataset_index": 916,
+    "score": 19,
+    "function_name": "detect_duplicates",
+    "instruction": "\ndef detect_duplicates(array1, array2):\n    \"\"\"Design an efficient algorithm that uses the concepts of hash tables and binary search trees to detect duplicate elements within a single array as well as between two different arrays. The first array contains normal integers while the second array contains integer tuples. The algorithm should be able to handle edge cases such as empty arrays, arrays with just one element, and arrays with all duplicate elements. Also, propose an error handling mechanism for scenarios where non-integer elements are included. Test and debug the below erroneous reference code that supposedly should have solved the problem.\n\nArray 1: [2, 3, 4, 5, 6, 3]\nArray 2: [(2,5), (3,6), (4,7), (2,5)]\n\nErroneous reference code:\n\ndef detect_duplicates(array):\n    # create hash table to store elements\n    hash_table = {}\n\n    for element in array:\n        # check if element already exists in hash table\n        if element in hash_table:\n            # if it does, it is a duplicate\n            return True\n\n        # otherwise, add element to hash table\n        hash_table[element] = 1\n\n    # no duplicates found\n    return False\n\nprint(detect_duplicates([2, 3, 4, 5, 6, 3, (2,5), (3,6), (4,7), (2,5)]))\"\"\"",
+    "input": "",
+    "output": "\ndef detect_duplicates(array1, array2):\n    \n    # create hash table to store elements\n    Hash1 = {}\n    Hash2 = {}\n\n    # iterate over the first array\n    for element in array1:\n        if type(element) == int:\n            # check if element already exists in hash table\n            if element in Hash1:\n                # if it does, it is a duplicate\n                return True\n            # otherwise, add element to hash table\n            Hash1[element] = 1\n\n    # iterate over the second array\n    for element in array2:\n        if type(element) == tuple and len(element)==2 and type(element[0])==int and type(element[1])==int:\n            if element in Hash2:\n                return True\n            Hash2[element] = 1\n\n    # No duplicates found\n    return False\n\nprint(detect_duplicates([2, 3, 4, 5, 6, 3], [(2,5), (3,6), (4,7), (2,5)])) # should return True\nprint(detect_duplicates([2, 3, 4, 5, 6], [(2,5), (3,6), (4,7)])) # should return False",
+    "tests": "assert detect_duplicates([2, 3, 4, 5, 6, 3], [(2,5), (3,6), (4,7), (2,5)]) == True\nassert detect_duplicates([2, 3, 4, 5, 6], [(2,5), (3,6), (4,7)]) == False\nassert detect_duplicates([], []) == False\nassert detect_duplicates([7], []) == False\nassert detect_duplicates([2, 2, 2, 2], [(2, 2), (2, 2)])",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 3313,
+    "score": 19,
+    "function_name": "topNFrequent",
+    "instruction": "\nimport collections\nimport heapq\n\n# function to count frequency of elements and return top n\ndef topNFrequent(nums, n): \n    \"\"\"What is the most optimal way to count the frequency of each element in an array using a dictionary in Python, considering the case where an array might hold elements of different data types (numbers, strings, etc.)? \n\nAdditionally, implement a method to sort this dictionary by the frequencies and output the top n elements with the highest frequency. If multiple elements have the same frequency, they should be sorted lexicographically. Assume that the input array will have at least one element. \n\nTry to solve this problem with the time complexity less than O(n log n).\"\"\"",
+    "input": "",
+    "output": "\nimport collections\nimport heapq\n\n# function to count frequency of elements and return top n\ndef topNFrequent(nums, n): \n    \n    count = collections.Counter(nums) \n    return heapq.nlargest(n, count.keys(), key=count.get)",
+    "tests": "assert topNFrequent([1, 2, 3, 1, 2, 1], 2) == [1, 2]\nassert topNFrequent(['hello', 'world', 'hello', 'python'], 1) == ['hello']\nassert topNFrequent([1], 1) == [1]\nassert topNFrequent(['a', 'b', 'c', 'a'], 3) == ['a', 'b', 'c']",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 7461,
+    "score": 19,
+    "function_name": "search",
+    "instruction": "\ndef search(array, target):\n    \"\"\"Develop a modified binary search algorithm that not only traverses through, but also identifies the position of specified elements within a pre-determined numerical array. This array should not be sorted and utilize staggered intervals for an additional challenge.\nProvided Array = [3, 9, 1, 7, 5, 4]\"\"\"",
+    "input": "",
+    "output": "\ndef search(array, target):\n    \n    result = []\n    for i in range(len(array)):\n        if array[i] == target:\n            result.append(i)\n    return result",
+    "tests": "assert search([3, 9, 1, 7, 5, 4], 3) == [0]\nassert search([3, 9, 1, 7, 5, 4], 9) == [1]\nassert search([3, 9, 1, 7, 5, 4], 1) == [2]\nassert search([3, 9, 1, 7, 5, 4], 7) == [3]",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 1855,
+    "score": 18,
+    "function_name": "binary_search",
+    "instruction": "def binary_search(arr, x): \n    \"\"\"Rewrite this function to use a binary search instead. You are given a sorted array of integers and a target integer. The function should return the index of the first occurrence of the target integer in the array, or -1 if it is not present. You can assume that the array may contain duplicates.\n\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n#Erroneous Code#\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid + 1] != x):  # Changed arr[mid - 1] to arr[mid + 1]\n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\"\"\"\n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n# Updated function to use binary search correctly\ndef binary_search(arr, x): \n    \"\"\"Rewrite this function to use a binary search instead. You are given a sorted array of integers and a target integer. The function should return the index of the first occurrence of the target integer in the array, or -1 if it is not present. You can assume that the array may contain duplicates.\n\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\n\n#Erroneous Code#\ndef binary_search(arr, x): \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid + 1] != x):  # Changed arr[mid - 1] to arr[mid + 1]\n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1\"\"\"",
+    "input": "",
+    "output": "def binary_search(arr, x): \n    \n    low = 0\n    high = len(arr) - 1\n  \n    while low <= high: \n        mid = (low + high) // 2\n  \n        if arr[mid] == x and (mid == 0 or arr[mid - 1] != x): \n            return mid \n  \n        elif arr[mid] < x: \n            low = mid + 1\n  \n        else: \n            high = mid - 1\n  \n    return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 3) == 2\nassert binary_search([1, 1, 2, 2, 3, 3, 4, 4, 5, 5], 3) == 4\nassert binary_search([1, 1, 1, 1], 1) == 0\nassert binary_search([1, 2, 3, 4, 5], 6) == -1\nassert binary_search([], 5) == -1",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 7560,
+    "score": 18,
+    "function_name": "largestComponentSize",
+    "instruction": "\nfrom collections import defaultdict\n\ndef largestComponentSize(nums):\n    \"\"\"port this code to python:\n```kotlin\nimport java.util.*\n\nfun largestComponentSize(nums: IntArray): Int {\n    fun primes(n: Int): Int {\n        for (i in 2..(n.toDouble().pow(0.5) + 1).toInt()) {\n            if (n % i == 0) {\n                return i\n            }\n        }\n        return n\n    }\n\n    fun dfs(node: Int, visited: MutableSet<Int>, graph: MutableMap<Int, MutableSet<Int>>): Int {\n        if (visited.contains(node)) {\n            return 0\n        }\n        visited.add(node)\n        var size = 1\n        for (neighbor in graph[node]!!) {\n            size += dfs(neighbor, visited, graph)\n        }\n        return size\n    }\n\n    val graph: MutableMap<Int, MutableSet<Int>> = HashMap()\n    val visited: MutableSet<Int> = HashSet()\n\n    for (num in nums) {\n        val prime = primes(num)\n        graph.computeIfAbsent(prime) { HashSet() }.add(num)\n        if (num != prime) {\n            graph.computeIfAbsent(num) { HashSet() }.add(prime)\n        }\n    }\n\n    var count = 0\n    for (num in nums) {\n        count = maxOf(count, dfs(num, visited, graph))\n    }\n\n    return count\n}\n```\"\"\"",
+    "input": "",
+    "output": "\nfrom collections import defaultdict\n\ndef largestComponentSize(nums):\n    \n    def primes(n):\n        for i in range(2, int(n**0.5) + 1):\n            if n % i == 0:\n                return i\n        return n\n\n    def dfs(node, visited, graph):\n        if node in visited:\n            return 0\n        visited.add(node)\n        size = 1\n        for neighbor in graph[node]:\n            size += dfs(neighbor, visited, graph)\n        return size\n\n    graph = defaultdict(set)\n    visited = set()\n\n    for num in nums:\n        prime = primes(num)\n        graph[prime].add(num)\n        if num != prime:\n            graph[num].add(prime)\n\n    count = 0\n    for num in nums:\n        count = max(count, dfs(num, visited, graph))\n\n    return count",
+    "tests": "assert largestComponentSize([13, 17, 19]) == 1\nassert largestComponentSize([23, 29, 31]) == 1\nassert largestComponentSize([30, 33, 35]) == 2\nassert largestComponentSize([42, 49, 50]) == 3",
+    "task": "dolphin-coder"
+  },
+  {
+    "dataset_index": 87,
+    "score": 17,
+    "function_name": "binary_search",
+    "instruction": "\nfrom typing import List\n\ndef binary_search(arr: List[int], value: int) -> int:\n    \"\"\"Given a sorted array of integers and an integer value, figure out whether the given value is present in the array or not using a binary search algorithm. If the value is present, return the index at which it is found. If the value is not present, return the index at which it should be inserted to maintain the sorted order.\n\nArray: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nValue: 7\n\nPlease write a function `binary_search` to solve the problem. The function should have the following signature:\n\n```\ndef binary_search(arr: List[int], value: int) -> int:\n    pass\n```\n\n**Input**\n- `arr`: a sorted list of integers with length `n` (1 ≤ n ≤ 10^6)\n- `value`: an integer (-10^9 ≤ value ≤ 10^9)\n\n**Output**\n- Returns an integer representing the index at which the value is found in the array, or the index at which it should be inserted to maintain the sorted order.\n\n**Example**\n```\narr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nvalue = 7\n\nbinary_search(arr, value) => 6\n```\n\n**Note**\nIn the given example, the value 7 is present in the array at index 6.\"\"\"",
+    "input": "",
+    "output": "\nfrom typing import List\n\ndef binary_search(arr: List[int], value: int) -> int:\n    \n    left = 0\n    right = len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == value:\n            return mid\n        \n        if arr[mid] < value:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return left",
+    "tests": "assert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 7) == 6\nassert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1) == 0\nassert binary_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10) == 9",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 538,
+    "score": 17,
+    "function_name": "binary_search",
+    "instruction": "\ndef binary_search(arr, target):\n    \"\"\"Implement a binary search algorithm in Python to search for a specific element in a sorted list. The algorithm should return the index of the element if found, or -1 if not found. Additionally, the algorithm should be able to handle duplicate elements in the list and return the index of the first occurrence of the element. The implementation should have a time complexity of O(log n).\"\"\"",
+    "input": "",
+    "output": "\ndef binary_search(arr, target):\n    \n    left = 0\n    right = len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == target:\n            # Check if it's the first occurrence\n            while mid > 0 and arr[mid-1] == target:\n                mid -= 1\n            return mid\n        \n        if arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 3) == 2\nassert binary_search([1, 2, 3, 4, 5], 6) == -1\nassert binary_search([1, 2, 2, 3, 4, 5], 2) == 1\nassert binary_search([-10, -5, 0, 5, 10], 0) == 2",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 940,
+    "score": 17,
+    "function_name": "canRepresentBST",
+    "instruction": "\ndef canRepresentBST(preOrder): \n    \"\"\"Write a function to check if a given array can represent a preorder traversal of a binary search tree.\n[8, 5, 1, 7, 10, 12]\"\"\"",
+    "input": "",
+    "output": "\ndef canRepresentBST(preOrder): \n    \n    stack = []\n    root = float(\"-inf\") \n\n    for value in preOrder: \n        if value < root: \n            return False\n        while(len(stack) > 0 and stack[-1] < value) : \n            root = stack.pop() \n        stack.append(value) \n\n    return True",
+    "tests": "assert canRepresentBST([1, 3, 2]) == True\nassert canRepresentBST([2, 1, 3]) == True\nassert canRepresentBST([]) == True\nassert canRepresentBST([5]) == True\nassert canRepresentBST([8, 5, 1, 7, 10, 12]) == True\nassert canRepresentBST([1, 2, 3, 4, 5]) == True",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 2265,
+    "score": 17,
+    "function_name": "calculate_binary_search_trees",
+    "instruction": "\ndef calculate_binary_search_trees(number):\n    \"\"\"I want to write a function in Python that calculates the number of possible binary search tree combinations for a given number of elements in a list. Can someone help me with the code?\"\"\"",
+    "input": "",
+    "output": "\ndef calculate_binary_search_trees(number):\n    \n    # Base case\n    if number <= 1:\n        return 1\n\n    # Recursively call the function, summing the result\n    total = 0\n    for i in range(1, number + 1):\n        total += calculate_binary_search_trees(i - 1) * calculate_binary_search_trees(number - i)\n    return total",
+    "tests": "assert calculate_binary_search_trees(0) == 1\nassert calculate_binary_search_trees(1) == 1\nassert calculate_binary_search_trees(2) == 2\nassert calculate_binary_search_trees(3) == 5\nassert calculate_binary_search_trees(4) == 14\nassert calculate_binary_search_trees(5) == 42\nassert calculate_binary_search_trees(6) == 132\nassert calculate_binary_search_trees(7) == 429\nassert calculate_binary_search_trees(8) == 1430\nassert calculate_binary_search_trees(9) == 4862",
+    "task": "glaive-code-assistant"
+  },
+  {
+    "dataset_index": 3349,
+    "score": 17,
+    "function_name": "sort_lexicographically",
+    "instruction": "\ndef sort_lexicographically(arr):\n    \"\"\"I need help designing a sorting algorithm in Python to sort an array of strings in lexicographical order. Can you provide a code example?\"\"\"",
+    "input": "",
+    "output": "\ndef sort_lexicographically(arr):\n    \n    n = len(arr) \n    for i in range(n):\n        min_index = i\n        for j in range(i + 1, n):\n            if arr[min_index] > arr[j]:\n                min_index = j\n        arr[i], arr[min_index] = arr[min_index], arr[i]\n    return arr",
+    "tests": "assert sort_lexicographically([\"apple\", \"banana\", \"orange\"]) == [\"apple\", \"banana\", \"orange\"]\nassert sort_lexicographically([\"peach\", \"kiwi\", \"apple\", \"banana\"]) == [\"apple\", \"banana\", \"kiwi\", \"peach\"]\nassert sort_lexicographically([\"grape\", \"cherry\", \"apple\"]) == [\"apple\", \"cherry\", \"grape\"]\nassert sort_lexicographically([]) == []\nassert sort_lexicographically([\"apple\"]) == [\"apple\"]",
+    "task": "glaive-code-assistant"
+  },
+  {
+    "dataset_index": 4908,
+    "score": 17,
+    "function_name": "sort_strings",
+    "instruction": "\ndef sort_strings(strings):\n    \"\"\"What is a possible solution to sort an array of strings lexicographically in Python?\"\"\"",
+    "input": "",
+    "output": "\ndef sort_strings(strings):\n    \n    return sorted(strings, key=lambda x: x.lower())",
+    "tests": "assert sort_strings([]) == []\nassert sort_strings([\"apple\", \"banana\", \"cherry\"]) == [\"apple\", \"banana\", \"cherry\"]\nassert sort_strings([\"cherry\", \"banana\", \"apple\"]) == [\"apple\", \"banana\", \"cherry\"]\nassert sort_strings([\"apple\", \"Apple\", \"aPPle\"]) == [\"apple\", \"Apple\", \"aPPle\"]\nassert sort_strings([\"123\", \"7\", \"55\"]) == [\"123\", \"55\", \"7\"]",
+    "task": "glaive-code-assistant"
+  },
+  {
+    "dataset_index": 5456,
+    "score": 17,
+    "function_name": "get_height",
+    "instruction": "\ndef get_height(arr):\n    \"\"\"I have an array that contains the integer elements of a Binary Search Tree (BST). I want to find the height of the BST. How can I achieve this using Python?\"\"\"",
+    "input": "",
+    "output": "\ndef get_height(arr):\n    \n    if not arr:\n        return 0\n    \n    height = 0\n    stack = [(0, len(arr) - 1)]\n    while stack: \n        start, end = stack.pop()\n        if start > end:  \n            continue \n            \n        mid = (start + end) // 2\n        height = max(height, mid - start + 1) \n        stack.append((start, mid - 1)) \n        stack.append((mid + 1, end)) \n      \n    return height",
+    "tests": "assert get_height([]) == 0\nassert get_height([1, 2, 3, 4, 5]) == 3\nassert get_height([1, 3]) == 1",
+    "task": "glaive-code-assistant"
+  },
+  {
+    "dataset_index": 7662,
+    "score": 17,
+    "function_name": "contains",
+    "instruction": "def contains(script, keywords):\n    \"\"\"Write a Python function that traverses a tree-like data structure in depth-first search (DFS) order and returns a list of all the node values. The tree-like data structure consists of a root node that can have zero or more child nodes. Each child node can also have zero or more child nodes, and so on. The root node has no parent node.\"\"\"",
+    "input": "",
+    "output": "def contains(script, keywords):\n    \n\n    # The keyword must be the first item in a list.\n    if type(script) != list or not script:\n        return False\n\n    if script[0] in keywords:\n        return True\n\n    # Iterate over all children.\n    return any(contains(child, keywords) for child in script)",
+    "tests": "assert contains([], \"keyword\") == False\nassert contains([\"keyword\"], \"keyword\") == True\nassert contains([\"root\", [\"child\"]], \"child\") == True\nassert contains([\"root\", [\"child1\", [\"child2\"]]], \"child2\") == True\nassert contains([\"root\", [\"child1\", [\"child2\"]]], \"child3\") == False",
+    "task": "self-oss-instruct-sc2-exec-filter-50k"
+  },
+  {
+    "dataset_index": 501,
+    "score": 16,
+    "function_name": "binary_search",
+    "instruction": "\nimport unittest\n\ndef binary_search(arr, target):\n    \"\"\"Write a program that implements a binary search algorithm to find the index of a given target value in a sorted array. The program should use the Test-Driven Development (TDD) methodology, where you write the test cases first and then implement the code to pass those tests. The binary search algorithm should have a time complexity of O(log n) and should be able to handle large arrays efficiently.\"\"\"",
+    "input": "",
+    "output": "\nimport unittest\n\ndef binary_search(arr, target):\n    \n    left, right = 0, len(arr) - 1\n\n    while left <= right:\n        mid = (left + right) // 2\n\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n\n    return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 3) == 2\nassert binary_search([1, 2, 3, 4, 5], 1) == 0\nassert binary_search([1, 2, 3, 4, 5], 5) == 4\nassert binary_search([1, 2, 3, 4, 5], 6) == -1\nassert binary_search([], 3) == -1\nassert binary_search([1], 1) == 0",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 512,
+    "score": 16,
+    "function_name": "count_vowels",
+    "instruction": "def count_vowels(string):\n    \"\"\"Given an array of strings, sort the strings in descending order of the number of vowels present in the string. If two strings have the same number of vowels, sort them alphabetically. The array can contain duplicate strings.\narray = [\"Banana\", \"Apple\", \"Orange\", \"Pineapple\", \"Grapes\", \"Cherry\"]\"\"\"",
+    "input": "",
+    "output": "def count_vowels(string):\n    \n    vowels = 'aeiouAEIOU'\n    count = 0\n    for char in string:\n        if char in vowels:\n            count += 1\n    return count",
+    "tests": "assert count_vowels(\"Banana\") == 3\nassert count_vowels(\"\") == 0\nassert count_vowels(\"aeiou\") == 5\nassert count_vowels(\"AEIOU\") == 5\nassert count_vowels(\"qwrtyp\") == 0\nassert count_vowels(\"hello\") == 2\nassert count_vowels(\"AEI\") == 3\nassert count_vowels(\"banAna\") == 3",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 517,
+    "score": 16,
+    "function_name": "search",
+    "instruction": "\ndef search(arr, target, start, end):\n    \"\"\"Implement a search() function that uses interpolation search to find the index of a given element in a sorted array. If the element is not present in the array, return -1. Interpolation search is an improved version of binary search that calculates the probable position of the target element based on the value of the element being searched and the values at the first and last indices of the array.\"\"\"",
+    "input": "",
+    "output": "\ndef search(arr, target, start, end):\n    \n    if start > end or target < arr[start] or target > arr[end]:\n        return -1\n\n    position = start + ((end - start) // (arr[end] - arr[start])) * (target - arr[start])\n\n    if arr[position] == target:\n        return position\n\n    if target < arr[position]:\n        return search(arr, target, start, position - 1)\n\n    return search(arr, target, position + 1, end)",
+    "tests": "assert search([1, 2, 3, 4, 5], 3, 0, 4) == 2\nassert search([1, 2, 3, 4, 5], 1, 0, 4) == 0\nassert search([1, 2, 3, 4, 5], 5, 0, 4) == 4\nassert search([1, 2, 3, 4, 5], 6, 0, 4) == -1",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 738,
+    "score": 16,
+    "function_name": "check_self_loop_sum",
+    "instruction": "\nfrom typing import List\n\ndef check_self_loop_sum(adj: List[List[int]]) -> bool:\n    \"\"\"You are given a directed graph represented as an adjacency matrix. An adjacency matrix is a 2D array where the entry at index (i, j) represents the weight of the edge from node i to node j. The diagonal of the adjacency matrix represents self-loops, i.e., edges from a node to itself.\n\nYour task is to write a function to check if the sum of weights of all self-loops in the graph is zero. If the sum is zero, the function should return True; otherwise, it should return False.\n\nFunction Signature: `def check_self_loop_sum(adj: List[List[int]]) -> bool`\n\nExample:\nFor the adjacency matrix `adj = [[0, 1, 0], [0, 0, 1], [1, 0, 0]]`, the function should return True, as the sum of self-loop weights is 0.\"\"\"",
+    "input": "",
+    "output": "\nfrom typing import List\n\ndef check_self_loop_sum(adj: List[List[int]]) -> bool:\n    \n    self_loop_sum = sum(adj[i][i] for i in range(len(adj)))\n    return self_loop_sum == 0",
+    "tests": "assert check_self_loop_sum([[0, 1, 0], [0, 0, 1], [1, 0, 0]]) == True\nassert check_self_loop_sum([[0, 0, 0], [0, 0, 0], [0, 0, 0]]) == True\nassert check_self_loop_sum([[1, 2, 3], [4, 0, 6], [7, 8, 0]]) == False\nassert check_self_loop_sum([[0]]) == True",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 786,
+    "score": 16,
+    "function_name": "binary_search",
+    "instruction": "\n# Function for Binary Search\ndef binary_search(arr, low, high, x):\n    \"\"\"Kindly furnish an aptly concocted executable script that mirrors the articulated algorithm: leveraging a binary search strategy to pinpoint the position of a distinct element x within a sequentially sorted array characterized by chronological order.\"\"\"",
+    "input": "",
+    "output": "\n# Function for Binary Search\ndef binary_search(arr, low, high, x):\n    \n \n    # Check base case\n    if high >= low:\n \n        mid = (high + low) // 2\n \n        # If element is present at the middle itself\n        if arr[mid] == x:\n            return mid\n \n        # If element is smaller than mid, then it can only\n        # be present in left subarray\n        elif arr[mid] > x:\n            return binary_search(arr, low, mid - 1, x)\n \n        # Else the element can only be present in right subarray\n        else:\n            return binary_search(arr, mid + 1, high, x)\n \n    else:\n        # Element is not present in array\n        return -1",
+    "tests": "assert binary_search([1, 2, 3, 4, 5], 0, 4, 3) == 2\nassert binary_search([1, 2, 3, 4, 5, 6, 7], 0, 6, 4) == 3\nassert binary_search([1, 2, 3, 4, 5, 6, 7, 8], 0, 7, 9) == -1",
+    "task": "CodeFeedback-Filtered-Instruction"
+  },
+  {
+    "dataset_index": 1065,
+    "score": 16,
+    "function_name": "numTrees",
+    "instruction": "\ndef numTrees(n: int) -> int:\n    \"\"\"Design and write an algorithm to calculate the total number of possible unique binary search trees with n nodes. Additionally, ensure that the function's time complexity doesn't exceed O(n^2).\"\"\"",
+    "input": "",
+    "output": "\ndef numTrees(n: int) -> int:\n    \n    G = [0] * (n + 1)\n    G[0], G[1] = 1, 1\n\n    for i in range(2, n + 1):\n        for j in range(1, i + 1):\n            G[i] += G[j - 1] * G[i - j]\n\n    return G[n]",
+    "tests": "assert numTrees(1) == 1\nassert numTrees(2) == 2\nassert numTrees(3) == 5\nassert numTrees(4) == 14\nassert numTrees(5) == 42\nassert numTrees(6) == 132\nassert numTrees(7) == 429\nassert numTrees(8) == 1430\nassert numTrees(9) == 4862\nassert numTrees(10) == 16796\nassert numTrees(11) == 58786",
+    "task": "Magicoder-Evol-Instruct-110K"
+  },
+  {
+    "dataset_index": 2585,
+    "score": 16,
+    "function_name": "binarySearch",
+    "instruction": "\ndef binarySearch(arr, x): \n    \"\"\"Can you provide an implementation of the Binary Search Algorithm for a sorted array?\"\"\"",
+    "input": "",
+    "output": "\ndef binarySearch(arr, x): \n    \n    low = 0\n    high = len(arr) - 1\n    while low <= high: \n        mid = (high + low) // 2\n        if arr[mid] < x: \n            low = mid + 1\n        elif arr[mid] > x: \n            high = mid - 1\n        else: \n            return mid \n    return -1",
+    "tests": "assert binarySearch([1, 2, 3, 4, 5], 3) == 2\nassert binarySearch([1, 2, 3, 4, 5], 1) == 0\nassert binarySearch([1, 2, 3, 4, 5], 5) == 4\nassert binarySearch([1, 2, 3, 4, 5], 6) == -1\nassert binarySearch([1], 1) == 0\nassert binarySearch([1], 2) == -1",
+    "task": "glaive-code-assistant"
+  }
+]
