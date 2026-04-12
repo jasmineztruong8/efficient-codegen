@@ -61,11 +61,16 @@ efficient-codegen/
 
 ## Reproducing the Dataset (Local)
 
-### Requirements
+### Setup
 
 ```bash
-pip install transformers datasets accelerate peft bitsandbytes wandb torch-tb-profiler
+python3 -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
+
+> Activate the venv (`source venv/bin/activate`) before running any script in this repo.
 
 ### Step 1: Obtain the raw dataset
 
