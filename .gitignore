@@ -219,9 +219,22 @@ data/curated/scale_full/candidates_full.json
 # logs
 logs/
 
-# outputs — ignore intermediate files, keep final results
+# model checkpoints (stored on Google Drive)
+checkpoints/
+*.safetensors
+
+# outputs — ignore large trace files and intermediate results
 outputs/*_smoke.jsonl
 outputs/passing_candidates_*.jsonl
+outputs/gpu_profiling/
+outputs/operator_profiling/
+outputs/operator_profile/
+outputs/tb_profiler/
+outputs/traces/
+outputs/traces_clean/
+
+# W&B local run logs
+wandb/
 
 # python
 __pycache__/

@@ -54,7 +54,8 @@ efficient-codegen/
 │   ├── evaluated_candidates_full.jsonl   # Pass/fail per candidate (committed)
 │   └── benchmarked_candidates_full.jsonl # Median runtime for passing candidates (committed)
 └── notebooks/
-    └── prototype_pipeline_colab.ipynb  # Full Colab pipeline (generation → benchmark)
+    ├── pipeline.ipynb                  # Generation → evaluation → filter → benchmark (Vast.ai)
+    └── profiling.ipynb                 # Model profiling + operator-level trace (Vast.ai)
 ```
 
 ---
@@ -96,22 +97,29 @@ bash scripts/run_pipeline_20.sh    # → data/curated/prototyping/prototype_fina
 
 ---
 
-## Generation + Profiling (Colab)
+## Generation + Profiling (Vast.ai)
 
-Open `notebooks/prototype_pipeline_colab.ipynb` in Google Colab. Use a G4 (NVIDIA RTX PRO 6000 Blackwell, 94GB) or A100 for generation. T4/L4 is sufficient for profiling only.
+Use a Vast.ai instance with a CUDA/PyTorch image (A100 or equivalent). Minimum 80GB disk recommended. Open Jupyter from the instance dashboard.
 
-The notebook covers:
+### `notebooks/pipeline.ipynb`
+Covers the full generation and evaluation pipeline:
 1. Environment setup and repo clone
 2. Smoke test (2 problems, 2 candidates)
 3. Full generation run — generates `NUM_CANDIDATES` solutions per problem via `Qwen2.5-Coder-1.5B-Instruct`
 4. Correctness evaluation
 5. Filter passing candidates
 6. Runtime benchmarking of passing candidates
-7. PyTorch Profiler run with WandB logging
+7. Quick checks (Pass@1, Pass@5, speedup stats)
 
-**Recommended batch size:** `--batch_size 64` on G4 (improves GPU utilization from 34% → 52% vs batch=8)
+### `notebooks/profiling.ipynb`
+Covers model and operator-level profiling:
+1. Environment setup and repo clone
+2. Model profiling with PyTorch Profiler + W&B logging
+3. Operator-level trace with bottleneck analysis (prints top operators and bottleneck report directly)
 
-**Required Colab secrets:** `GITHUB_TOKEN`, `WANDB_API_KEY`
+**Recommended batch size:** `--batch_size 64` on A100 (improves GPU utilization from 34% → 52% vs batch=8)
+
+**Optional environment variables:** `WANDB_API_KEY` for W&B logging, `GITHUB_TOKEN` for private repo clone
 
 ---
 
