@@ -13,9 +13,10 @@ We fine-tune `Qwen2.5-Coder-1.5B-Instruct` to generate not just correct code, bu
 
 **Approach:**
 1. Curate a clean subset of the [EffiCoder dataset](https://arxiv.org/abs/2410.10209)
-2. Generate multiple candidate solutions per problem using an SLM
+2. Generate multiple candidate solutions per problem using the base SLM
 3. Select the fastest correct candidate per problem to build a runtime-aware fine-tuning dataset
 4. Fine-tune with qLoRA and compare against a control SFT and base SLM
+5. Profile GPU performance and benchmark serving throughput (HuggingFace vs vLLM)
 
 ---
 
@@ -27,16 +28,16 @@ efficient-codegen/
 │   ├── raw/                        # Raw EffiCoder dataset (not committed)
 │   └── curated/
 │       ├── scale_full/             # Full ~6.6k clean dataset
-│       ├── scale1k/                # 1k subset for validation
+│       ├── scale1k/                # 1k subset for ablation evaluation
 │       └── prototyping/            # 20-sample profiling set
 ├── scripts/
 │   ├── select_dataset.py           # Filter and score problems from raw dataset
 │   ├── filter_passing.py           # Keep only problems whose reference solution passes tests
-│   ├── expand_candidates.py        # Expand a base set with additional candidates (prototyping)
-│   ├── merge_candidates.py         # Merge base + expansion batch (prototyping)
+│   ├── expand_candidates.py        # Expand a base set with additional candidates
+│   ├── merge_candidates.py         # Merge base + expansion batch
 │   ├── review_candidates.py        # Inspect candidate scores (utility)
 │   ├── quick_check.py              # Sanity check dataset (utility)
-│   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.9k
+│   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.6k
 │   ├── run_pipeline_1k.sh          # Slice 1k from full dataset
 │   └── run_pipeline_20.sh          # Slice 20-sample profiling set
 ├── generation/
@@ -46,32 +47,44 @@ efficient-codegen/
 │   ├── evaluate_candidates.py      # Check correctness of generated candidates
 │   ├── filter_passing_candidates.py# Keep only passing candidates
 │   └── benchmark_candidates.py     # Time passing candidates (repeated runs, median)
+├── training/
+│   ├── train.py                    # qLoRA fine-tuning with SFTTrainer
+│   ├── evaluate_model.py           # Generate + evaluate candidates for a given model
+│   └── select_training_data.py     # Build runtime_aware.jsonl and control.jsonl
+├── serving/
+│   ├── merge_checkpoint.py         # Merge LoRA adapter into base model weights
+│   └── benchmark_serving.py        # Benchmark HuggingFace and vLLM serving backends
 ├── profiling/
-│   ├── profile_model.py            # PyTorch Profiler + WandB logging (high-level metrics)
+│   ├── profile_model.py            # PyTorch Profiler + W&B logging (high-level metrics)
 │   └── profile_operators.py        # Operator-level trace with bottleneck analysis
 ├── outputs/
-│   ├── generated_candidates_full.jsonl   # 6,646 problems × 5 candidates (committed)
-│   ├── evaluated_candidates_full.jsonl   # Pass/fail per candidate (committed)
-│   └── benchmarked_candidates_full.jsonl # Median runtime for passing candidates (committed)
+│   ├── generated_candidates_full.jsonl     # 6,646 problems x 5 candidates
+│   ├── evaluated_candidates_full.jsonl     # Pass/fail per candidate
+│   ├── benchmarked_candidates_full.jsonl   # Median runtime for passing candidates
+│   ├── serving_full_results.csv            # HF vs vLLM serving benchmark results
+│   ├── wandb_ablation_runs_2026-04-20.csv  # Ablation study W&B export
+│   └── wandb_profiled_runs_2026-04-20.csv  # Profiling W&B export
 └── notebooks/
-    ├── pipeline.ipynb                  # Generation → evaluation → filter → benchmark (Vast.ai)
-    └── profiling.ipynb                 # Model profiling + operator-level trace (Vast.ai)
+    ├── base_data_generation_evaluation_pipeline.ipynb  # Generation → evaluation → benchmark (Vast.ai)
+    ├── base_model_gpu_profiling.ipynb                  # Base model profiling with profile_model.py + profile_operators.py
+    ├── gpu_profiling_comparison.ipynb                  # 3-model GPU profiling comparison (base, control, runtime-aware)
+    ├── results.ipynb                                   # Ablation + serving results summary tables
+    ├── efficient_codegen_experiments.ipynb             # Training runs (Colab)
+    └── efficient_codegen_system_optimization.ipynb     # Serving benchmarks (Colab)
 ```
 
 ---
 
-## Reproducing the Dataset (Local)
+## Phase 1: Data Curation (Local)
 
 ### Setup
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
-
-> Activate the venv (`source venv/bin/activate`) before running any script in this repo.
 
 ### Step 1: Obtain the raw dataset
 
@@ -80,115 +93,162 @@ Download `efficoder.json` and place it at `data/raw/efficoder.json`.
 ### Step 2: Run the data pipeline
 
 ```bash
-# Build the full clean dataset (~6.6k problems, takes several hours)
-bash scripts/run_pipeline_full.sh
-
-# Slice subsets
-bash scripts/run_pipeline_1k.sh    # → data/curated/scale1k/dataset_clean.json
-bash scripts/run_pipeline_20.sh    # → data/curated/prototyping/prototype_final_20_clean.json
+bash scripts/run_pipeline_full.sh   # -> data/curated/scale_full/dataset_clean.json (~6.6k problems)
+bash scripts/run_pipeline_1k.sh     # -> data/curated/scale1k/dataset_clean.json (1k subset)
+bash scripts/run_pipeline_20.sh     # -> data/curated/prototyping/prototype_final_20_clean.json
 ```
 
-**Pipeline steps inside `run_pipeline_full.sh`:**
-1. `select_dataset.py` — filters and scores all ~9.4k EffiCoder problems, keeps ~6.9k eligible
-2. `benchmark.py` — runs each reference solution 7× in an isolated subprocess, records median runtime
+**Pipeline steps:**
+1. `select_dataset.py` — filters ~9.4k EffiCoder problems, keeps ~6.9k eligible
+2. `benchmark.py` — runs each reference solution 7x in an isolated subprocess, records median runtime
 3. `filter_passing.py` — keeps only problems whose reference solution passes all tests (~96% pass rate)
 
-**Output:** `data/curated/scale_full/dataset_clean.json` (~6.6k problems)
+---
+
+## Phase 2: Candidate Generation & Benchmarking (Vast.ai / A100)
+
+Use a Vast.ai instance with a CUDA/PyTorch image (A100 recommended, minimum 80GB disk).
+
+### `notebooks/base_data_generation_evaluation_pipeline.ipynb`
+
+Runs the full generation and evaluation pipeline on `scale_full` (6,646 problems):
+
+1. Generate 5 candidate solutions per problem using `Qwen2.5-Coder-1.5B-Instruct`
+2. Evaluate candidate correctness → `outputs/evaluated_candidates_full.jsonl` (33,230 candidates)
+3. Filter passing candidates
+4. Benchmark passing candidates (7 runs, 1 warmup, median) → `outputs/benchmarked_candidates_full.jsonl` (7,992 passing)
+
+**Output used for training:** 7,992 benchmarked candidates → 2,110 training examples per model (via `select_training_data.py`)
 
 ---
 
-## Generation + Profiling (Vast.ai)
+## Phase 3: Fine-Tuning (GCP T4 + Colab)
 
-Use a Vast.ai instance with a CUDA/PyTorch image (A100 or equivalent). Minimum 80GB disk recommended. Open Jupyter from the instance dashboard.
+### `notebooks/efficient_codegen_experiments.ipynb`
 
-### `notebooks/pipeline.ipynb`
-Covers the full generation and evaluation pipeline:
-1. Environment setup and repo clone
-2. Smoke test (2 problems, 2 candidates)
-3. Full generation run — generates `NUM_CANDIDATES` solutions per problem via `Qwen2.5-Coder-1.5B-Instruct`
-4. Correctness evaluation
-5. Filter passing candidates
-6. Runtime benchmarking of passing candidates
-7. Quick checks (Pass@1, Pass@5, speedup stats)
+Model checkpoints (control and runtime-aware) were trained by Arnav on GCP T4 and stored on Google Drive. The notebook covers smoke tests and ablation evaluation on Colab.
 
-### `notebooks/profiling.ipynb`
-Covers model and operator-level profiling:
-1. Environment setup and repo clone
-2. Model profiling with PyTorch Profiler + W&B logging
-3. Operator-level trace with bottleneck analysis (prints top operators and bottleneck report directly)
+#### Build training datasets
 
-**Recommended batch size:** `--batch_size 64` on A100 (improves GPU utilization from 34% → 52% vs batch=8)
+```bash
+python training/select_training_data.py \
+    --candidates_path outputs/benchmarked_candidates_full.jsonl \
+    --dataset_path data/curated/scale_full/dataset_clean.json \
+    --output_dir training/data
+```
 
-**Optional environment variables:** `WANDB_API_KEY` for W&B logging, `GITHUB_TOKEN` for private repo clone
+Outputs:
+- `training/data/runtime_aware.jsonl` — fastest correct candidate per problem (2,110 examples)
+- `training/data/control.jsonl` — first correct candidate per problem (2,110 examples)
 
----
+#### Train models
 
-## Key Scripts
+```bash
+# Control SFT
+python training/train.py \
+    --mode control \
+    --data_path training/data/control.jsonl \
+    --output_dir checkpoints/control_full \
+    --use_wandb --wandb_project hpml-efficient-codegen
 
-| Script | Purpose | Key Args |
-|--------|---------|----------|
-| `scripts/select_dataset.py` | Filter & score problems | `--limit`, `--output` |
-| `execution/benchmark.py` | Benchmark reference solutions | `--input`, `--output`, `--repeats` |
-| `scripts/filter_passing.py` | Keep passing problems | `--bench`, `--candidates`, `--output`, `--limit` |
-| `generation/generate_candidates.py` | Generate candidate solutions | `--input_path`, `--num_candidates`, `--model_name`, `--limit` |
-| `execution/evaluate_candidates.py` | Check candidate correctness | `--input_path`, `--output_path`, `--limit` |
-| `execution/benchmark_candidates.py` | Time passing candidates | `--input_path`, `--output_path`, `--num_runs`, `--warmup_runs` |
-| `profiling/profile_model.py` | PyTorch Profiler + WandB | `--input_path`, `--limit`, `--batch_size`, `--use_wandb` |
-| `profiling/profile_operators.py` | Operator-level trace, bottleneck report, Chrome trace | `--input_path`, `--limit`, `--batch_size`, `--output_dir` |
+# Runtime-Aware SFT
+python training/train.py \
+    --mode runtime_aware \
+    --data_path training/data/runtime_aware.jsonl \
+    --output_dir checkpoints/runtime_aware_full \
+    --use_wandb --wandb_project hpml-efficient-codegen
+```
 
----
+Checkpoints are stored on Google Drive and are not committed (~800MB LoRA adapters).
 
-## Profiling Results (Baseline)
+#### Ablation evaluation (scale1k, 1,000 problems)
 
-Profiled on NVIDIA RTX PRO 6000 Blackwell (94GB, CC 12.0) using `Qwen2.5-Coder-1.5B-Instruct` in bfloat16.
-
-### batch_size=8 vs batch_size=64
-
-Profiled on 20 samples (batch=8) and 320 samples / 5 batches (batch=64).
-
-| Metric | batch=8 | batch=64 |
-|--------|---------|---------|
-| GPU Utilization | 34.33% | 42.71% |
-| Est. SM Efficiency | 17.8% | 35.37% |
-| Est. Achieved Occupancy | 9.74% | 31.73% |
-| Kernel share of step time | 34.3% | 42.76% |
-| CPU Exec share of step time | 53.6% | 50.86% |
-| Tensor Core utilization | ~1% | ~6.7% |
-
-### Key bottlenecks identified
-
-1. **CPU-bound autoregressive decode loop** — CPU execution accounts for 50.9% of step time at batch=64. `cudaLaunchKernel` is called 811k times across 5 batches, indicating high Python dispatch overhead per token.
-2. **Per-token CPU-GPU synchronizations** — `aten::item` and `cudaStreamSynchronize` account for 17.8% of total profiled time (2,550 calls), triggered by EOS token detection inside the generate loop.
-3. **Low Tensor Core utilization** — only 6.7% of kernel time uses Tensor Cores despite bfloat16. During decode, M-dimension equals batch size (64), which is too small to saturate Tensor Core tiles.
-4. **No data-loading bottleneck** — tokenization (<5ms per batch) and H2D transfer are negligible.
-
-### Proposed optimizations
-- `torch.compile(model, mode='reduce-overhead')` — fuses elementwise ops, eliminates Python dispatch overhead in decode loop
-- `synced_gpus=False` in `model.generate()` — reduces unnecessary CPU-GPU syncs during EOS detection
-- batch_size ≥ 64 for inference — already validated above
-
-Full operator-level trace: `outputs/operator_profile/bottleneck_report.txt`
+```bash
+python training/evaluate_model.py --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct --run_name base_slm ...
+python training/evaluate_model.py --model_path checkpoints/control_full --run_name control_sft ...
+python training/evaluate_model.py --model_path checkpoints/runtime_aware_full --run_name runtime_aware_sft ...
+```
 
 ---
 
-## Outputs
+## Phase 4: Serving Optimization (Colab)
 
-Key output files committed to the repo (generated on G4/Colab using `Qwen2.5-Coder-1.5B-Instruct`):
+### `notebooks/efficient_codegen_system_optimization.ipynb`
 
-| File | Description |
-|------|-------------|
-| `outputs/generated_candidates_full.jsonl` | 6,646 problems × 5 candidates = 33,230 generated solutions |
-| `outputs/evaluated_candidates_full.jsonl` | Pass/fail result for each candidate (Pass@1=34.2%, Pass@5=46.0%) |
-| `outputs/benchmarked_candidates_full.jsonl` | Median runtime for each passing candidate (7 runs, 1 warmup) |
+Compares HuggingFace Transformers vs vLLM on base and runtime-aware models.
 
-Intermediate files (gitignored, re-derivable):
-- `outputs/passing_candidates_full.jsonl` — filtered subset of evaluated, passing only
+#### Merge LoRA adapter before vLLM
+
+```bash
+python serving/merge_checkpoint.py \
+    --adapter_path checkpoints/runtime_aware_full \
+    --base_model_name Qwen/Qwen2.5-Coder-1.5B-Instruct \
+    --output_dir checkpoints/runtime_aware_merged
+```
+
+#### Benchmark serving
+
+```bash
+python serving/benchmark_serving.py \
+    --backend hf \
+    --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
+    --input_path data/curated/scale1k/dataset_clean.json \
+    --limit 1000 --batch_size 8 \
+    --output_path outputs/serving/base_hf_full.json
+```
+
+Results saved to `outputs/serving_full_results.csv`.
+
+---
+
+## Phase 5: GPU Profiling (Vast.ai / A100)
+
+### `notebooks/base_model_gpu_profiling.ipynb`
+
+Profiles the base model (`Qwen2.5-Coder-1.5B-Instruct`) on the full dataset using:
+- `profiling/profile_model.py` — PyTorch Profiler with W&B logging (latency, memory, throughput)
+- `profiling/profile_operators.py` — operator-level trace with bottleneck report and Chrome trace
+
+### `notebooks/gpu_profiling_comparison.ipynb`
+
+Profiles all three models (base, control, runtime-aware) with identical settings for direct comparison:
+- Merges LoRA adapters before profiling
+- Saves TensorBoard traces to `outputs/gpu_profiling/<model>/`
+- Produces side-by-side operator breakdown and bottleneck comparison
+
+---
+
+## Results
+
+### Ablation Study (scale1k, 1,000 problems)
+
+| Model | Pass@1 | Median Exec Time (ms) | Avg Gen Latency (s) |
+|-------|--------|----------------------|---------------------|
+| Base SLM | 0.369 | 0.0890 | 0.890 |
+| Control SFT | 0.709 | 0.0906 | 0.753 |
+| Runtime-Aware SFT | 0.702 | 0.0897 | 0.742 |
+
+### Serving Performance (scale1k, 1,000 prompts, A100)
+
+| Model | Backend | Throughput (tokens/s) | Avg GPU Util (%) |
+|-------|---------|----------------------|-----------------|
+| Base SLM | HuggingFace | 233.5 | 37.6% |
+| Base SLM | vLLM | 1781.6 | 97.2% |
+| Runtime-Aware SFT | HuggingFace | 228.6 | 37.3% |
+| Runtime-Aware SFT | vLLM | 1891.1 | 96.8% |
+
+### Key Profiling Findings
+
+- **CPU-bound decode loop** — CPU execution accounts for ~51% of step time; `cudaLaunchKernel` called ~923k times across 5 batches
+- **Per-token CPU-GPU syncs** — `aten::item` + `cudaStreamSynchronize` account for 6.7% of total time (EOS detection inside generate loop)
+- **Low Tensor Core utilization** — ~6.7% of kernel time during decode due to small M-dimension (batch size)
+- **vLLM provides 7.6x throughput improvement** over HuggingFace via PagedAttention and continuous batching
 
 ---
 
 ## Experiment Tracking
 
-WandB project: [hpml-efficient-codegen](https://wandb.ai/yz3202-columbia-university/hpml-efficient-codegen)
+W&B project: [hpml-efficient-codegen](https://wandb.ai/efficient-codegen/hpml-efficient-codegen)
 
 ---
 
@@ -198,3 +258,4 @@ WandB project: [hpml-efficient-codegen](https://wandb.ai/yz3202-columbia-univers
 - Nichols et al. [Performance-Aligned LLMs for Generating Fast Code](https://arxiv.org/abs/2404.18864), 2024
 - Hui et al. [Qwen2.5-Coder Technical Report](https://arxiv.org/abs/2409.12186), 2024
 - Dettmers et al. [QLoRA](https://arxiv.org/abs/2305.14314), 2023
+- Guo et al. [DeepSeek-Coder](https://arxiv.org/abs/2401.14196), 2024
