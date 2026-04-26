@@ -222,9 +222,11 @@ Profiles all three models (base, control, runtime-aware) with identical settings
 
 ## Results
 
+Ablation metrics match `training/evaluate_model.py` and W&B: median execution time is **seconds** (wall time for the fastest passing candidate’s tests per problem, aggregated as the median across problems).
+
 ### Ablation Study (scale1k, 1,000 problems)
 
-| Model | Pass@1 | Median Exec Time (ms) | Avg Gen Latency (s) |
+| Model | Pass@1 | Median Exec Time (s) | Avg Gen Latency (s) |
 |-------|--------|----------------------|---------------------|
 | Base SLM | 0.369 | 0.0890 | 0.890 |
 | Control SFT | 0.709 | 0.0906 | 0.753 |
