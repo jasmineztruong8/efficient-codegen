@@ -1,4 +1,4 @@
-"""Run a simple serving benchmark with either Hugging Face or vLLM."""
+"""Run a simple serving benchmark with Hugging Face, vLLM, or SGLang."""
 
 import argparse
 import json
@@ -18,8 +18,8 @@ SYSTEM_PROMPT = (
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Benchmark serving with HF or vLLM.")
-    parser.add_argument("--backend", choices=["hf", "vllm"], required=True)
+    parser = argparse.ArgumentParser(description="Benchmark serving with HF, vLLM, or SGLang.")
+    parser.add_argument("--backend", choices=["hf", "vllm", "sglang"], required=True)
     parser.add_argument("--model_path", type=str, required=True, help="HF model name or local checkpoint path")
     parser.add_argument("--input_path", type=str, required=True, help="Path to dataset_clean.json")
     parser.add_argument("--output_path", type=str, required=True, help="Path to save JSON results")
@@ -209,7 +209,7 @@ def benchmark_hf(args):
 
 
 def benchmark_vllm(args):
-    from vllm import LLM, SamplingParams
+    from vllm import LLM, SamplingParams  # type: ignore[import-not-found]
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
     prompts = load_prompts(args.input_path, args.limit, tokenizer)
@@ -255,6 +255,73 @@ def benchmark_vllm(args):
     )
 
 
+def _count_sglang_tokens(output, tokenizer):
+    meta_info = output.get("meta_info") or {}
+    completion_tokens = meta_info.get("completion_tokens")
+    if completion_tokens is not None:
+        return completion_tokens
+
+    output_ids = output.get("output_ids")
+    if output_ids is not None:
+        return len(output_ids)
+
+    text = output.get("text", "")
+    return len(tokenizer.encode(text, add_special_tokens=False))
+
+
+def benchmark_sglang(args):
+    from sglang import Engine  # type: ignore[import-not-found]
+
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
+    prompts = load_prompts(args.input_path, args.limit, tokenizer)
+    print(f"Loaded {len(prompts)} prompts")
+    print(f"Running SGLang benchmark for {args.model_path}")
+
+    dtype = "bfloat16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "float16"
+    engine = Engine(
+        model_path=args.model_path,
+        trust_remote_code=True,
+        dtype=dtype,
+    )
+    sampling_params = {
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+        "max_new_tokens": args.max_new_tokens,
+    }
+
+    gpu_samples, stop_event, monitor = start_gpu_monitor(args.gpu_sample_interval)
+
+    total_generated_tokens = 0
+    batch_latencies = []
+
+    try:
+        start_total = time.perf_counter()
+        for batch_start in range(0, len(prompts), args.batch_size):
+            batch_prompts = prompts[batch_start: batch_start + args.batch_size]
+            batch_start_time = time.perf_counter()
+            outputs = engine.generate(
+                prompt=batch_prompts,
+                sampling_params=sampling_params,
+            )
+            batch_latencies.append(time.perf_counter() - batch_start_time)
+            total_generated_tokens += sum(_count_sglang_tokens(output, tokenizer) for output in outputs)
+        total_time = time.perf_counter() - start_total
+    finally:
+        gpu_stats = stop_gpu_monitor(gpu_samples, stop_event, monitor)
+        if hasattr(engine, "shutdown"):
+            engine.shutdown()
+
+    return build_result(
+        args,
+        len(prompts),
+        total_time,
+        total_generated_tokens,
+        batch_latencies,
+        gpu_stats,
+        gpu_stats["max_gpu_mem_mb"],
+    )
+
+
 def save_result(result, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -285,7 +352,12 @@ def log_to_wandb(args, result):
 
 def main():
     args = parse_args()
-    result = benchmark_hf(args) if args.backend == "hf" else benchmark_vllm(args)
+    benchmarkers = {
+        "hf": benchmark_hf,
+        "vllm": benchmark_vllm,
+        "sglang": benchmark_sglang,
+    }
+    result = benchmarkers[args.backend](args)
 
     output_path = Path(args.output_path)
     save_result(result, output_path)

@@ -53,7 +53,7 @@ efficient-codegen/
 │   └── select_training_data.py     # Build runtime_aware.jsonl and control.jsonl
 ├── serving/
 │   ├── merge_checkpoint.py         # Merge LoRA adapter into base model weights
-│   └── benchmark_serving.py        # Benchmark HuggingFace and vLLM serving backends
+│   └── benchmark_serving.py        # Benchmark HuggingFace, vLLM, and SGLang serving backends
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + W&B logging (high-level metrics)
 │   └── profile_operators.py        # Operator-level trace with bottleneck analysis
@@ -175,7 +175,7 @@ python training/evaluate_model.py --model_path checkpoints/runtime_aware_full --
 
 ### `notebooks/efficient_codegen_system_optimization.ipynb`
 
-Compares HuggingFace Transformers vs vLLM on base and runtime-aware models.
+Compares HuggingFace Transformers, vLLM, and SGLang on base and runtime-aware models.
 
 #### Merge LoRA adapter before vLLM
 
@@ -196,6 +196,8 @@ python serving/benchmark_serving.py \
     --limit 1000 --batch_size 8 \
     --output_path outputs/serving/base_hf_full.json
 ```
+
+Use `--backend vllm` or `--backend sglang` to run the same benchmark against optimized serving engines.
 
 Results saved to `outputs/serving_full_results.csv`.
 
