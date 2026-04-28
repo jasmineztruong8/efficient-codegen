@@ -14,7 +14,7 @@ Each output line is a JSON record with a "messages" field ready for SFTTrainer.
 Usage:
   python training/select_training_data.py \
     --candidates_path outputs/benchmarked_candidates.jsonl \
-    --dataset_path data/curated/scale1k/dataset_clean.json \
+    --dataset_path data/curated/train/dataset_clean.json \
     --output_dir training/data
 """
 
