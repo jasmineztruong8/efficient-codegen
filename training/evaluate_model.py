@@ -21,7 +21,7 @@ Usage:
   python training/evaluate_model.py \
     --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name base_slm \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --use_wandb
 
   # Fine-tuned checkpoint
@@ -29,14 +29,14 @@ Usage:
     --model_path training/checkpoints/runtime_aware \
     --base_model_name Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name runtime_aware_sft \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --use_wandb
 
   # With profiling
   python training/evaluate_model.py \
     --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name base_slm \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --profile --trace_dir outputs/tb_profiler/eval
 """
 
