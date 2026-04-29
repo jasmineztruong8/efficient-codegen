@@ -193,6 +193,7 @@ def main() -> None:
     train_dataset = load_dataset(args.data_path, tokenizer, args.max_seq_length, args.limit)
     print(f"Training on {len(train_dataset)} examples  (mode={args.mode})")
 
+
     training_args = SFTConfig(
         output_dir=args.output_dir,
         num_train_epochs=args.num_train_epochs,
@@ -258,11 +259,14 @@ def main() -> None:
         profiler_ctx.__exit__(None, None, None)
         print(f"Profiler traces saved to {args.trace_dir}")
 
-    if torch.cuda.is_available() and args.use_wandb:
+    if args.use_wandb:
         import wandb
-        peak_mem_mb = torch.cuda.max_memory_allocated() / (1024 ** 2)
-        wandb.log({"peak_cuda_memory_mb": peak_mem_mb})
-        print(f"Peak CUDA memory: {peak_mem_mb:.1f} MB")
+        log = {"num_train_examples": len(train_dataset)}
+        if torch.cuda.is_available():
+            peak_mem_mb = torch.cuda.max_memory_allocated() / (1024 ** 2)
+            log["peak_cuda_memory_mb"] = peak_mem_mb
+            print(f"Peak CUDA memory: {peak_mem_mb:.1f} MB")
+        wandb.log(log)
 
     trainer.save_model(args.output_dir)
     print(f"Model saved to {args.output_dir}")

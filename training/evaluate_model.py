@@ -174,12 +174,14 @@ def generate_candidates(
                 max_length=1024,
             ).to(device)
 
+            # Use greedy decoding when temperature=0; sampling otherwise.
+            greedy = temperature == 0.0
             output_ids = model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                do_sample=True,
-                temperature=temperature,
-                top_p=top_p,
+                do_sample=not greedy,
+                temperature=None if greedy else temperature,
+                top_p=None if greedy else top_p,
                 num_return_sequences=num_candidates,
                 pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
