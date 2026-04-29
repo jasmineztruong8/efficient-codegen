@@ -28,17 +28,19 @@ efficient-codegen/
 │   ├── raw/                        # Raw EffiCoder dataset (not committed)
 │   └── curated/
 │       ├── scale_full/             # Full ~6.6k clean dataset
-│       ├── scale1k/                # 1k subset for ablation evaluation
+│       ├── train/                  # Shuffled split for SFT
+│       ├── validation/             # Shuffled split for tuning/model selection
+│       ├── test/                   # Shuffled split for final reporting
 │       └── prototyping/            # 20-sample profiling set
 ├── scripts/
 │   ├── select_dataset.py           # Filter and score problems from raw dataset
 │   ├── filter_passing.py           # Keep only problems whose reference solution passes tests
+│   ├── create_dataset_splits.py    # Create deterministic train/validation/test splits
 │   ├── expand_candidates.py        # Expand a base set with additional candidates
 │   ├── merge_candidates.py         # Merge base + expansion batch
 │   ├── review_candidates.py        # Inspect candidate scores (utility)
 │   ├── quick_check.py              # Sanity check dataset (utility)
 │   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.6k
-│   ├── run_pipeline_1k.sh          # Slice 1k from full dataset
 │   └── run_pipeline_20.sh          # Slice 20-sample profiling set
 ├── generation/
 │   └── generate_candidates.py      # Generate N candidate solutions per problem via LLM
@@ -94,7 +96,7 @@ Download `efficoder.json` and place it at `data/raw/efficoder.json`.
 
 ```bash
 bash scripts/run_pipeline_full.sh   # -> data/curated/scale_full/dataset_clean.json (~6.6k problems)
-bash scripts/run_pipeline_1k.sh     # -> data/curated/scale1k/dataset_clean.json (1k subset)
+python scripts/create_dataset_splits.py --remove_legacy_scale1k
 bash scripts/run_pipeline_20.sh     # -> data/curated/prototyping/prototype_final_20_clean.json
 ```
 
@@ -102,6 +104,12 @@ bash scripts/run_pipeline_20.sh     # -> data/curated/prototyping/prototype_fina
 1. `select_dataset.py` — filters ~9.4k EffiCoder problems, keeps ~6.9k eligible
 2. `benchmark.py` — runs each reference solution 7x in an isolated subprocess, records median runtime
 3. `filter_passing.py` — keeps only problems whose reference solution passes all tests (~96% pass rate)
+4. `create_dataset_splits.py` — shuffles with a fixed seed and writes disjoint train/validation/test splits
+
+Current split sizes:
+- `data/curated/train/dataset_clean.json` — 5,316 problems
+- `data/curated/validation/dataset_clean.json` — 664 problems
+- `data/curated/test/dataset_clean.json` — 666 problems
 
 ---
 
@@ -133,13 +141,13 @@ Model checkpoints (control and runtime-aware) were trained by Arnav on GCP T4 an
 ```bash
 python training/select_training_data.py \
     --candidates_path outputs/benchmarked_candidates_full.jsonl \
-    --dataset_path data/curated/scale_full/dataset_clean.json \
+    --dataset_path data/curated/train/dataset_clean.json \
     --output_dir training/data
 ```
 
 Outputs:
-- `training/data/runtime_aware.jsonl` — fastest correct candidate per problem (2,110 examples)
-- `training/data/control.jsonl` — first correct candidate per problem (2,110 examples)
+- `training/data/runtime_aware.jsonl` — fastest correct candidate per train problem (1,691 examples)
+- `training/data/control.jsonl` — first correct candidate per train problem (1,691 examples)
 
 #### Train models
 
@@ -161,12 +169,14 @@ python training/train.py \
 
 Checkpoints are stored on Google Drive and are not committed (~800MB LoRA adapters).
 
-#### Ablation evaluation (scale1k, 1,000 problems)
+#### Ablation evaluation
+
+Use the validation split while choosing prompts, hyperparameters, or checkpoints. Use the test split only once for final reporting.
 
 ```bash
-python training/evaluate_model.py --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct --run_name base_slm ...
-python training/evaluate_model.py --model_path checkpoints/control_full --run_name control_sft ...
-python training/evaluate_model.py --model_path checkpoints/runtime_aware_full --run_name runtime_aware_sft ...
+python training/evaluate_model.py --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct --run_name base_slm --data_path data/curated/test/dataset_clean.json ...
+python training/evaluate_model.py --model_path checkpoints/control_full --run_name control_sft --data_path data/curated/test/dataset_clean.json ...
+python training/evaluate_model.py --model_path checkpoints/runtime_aware_full --run_name runtime_aware_sft --data_path data/curated/test/dataset_clean.json ...
 ```
 
 ---
@@ -192,8 +202,8 @@ python serving/merge_checkpoint.py \
 python serving/benchmark_serving.py \
     --backend hf \
     --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
-    --input_path data/curated/scale1k/dataset_clean.json \
-    --limit 1000 --batch_size 8 \
+    --input_path data/curated/test/dataset_clean.json \
+    --batch_size 8 \
     --output_path outputs/serving/base_hf_full.json
 ```
 
@@ -224,7 +234,9 @@ Profiles all three models (base, control, runtime-aware) with identical settings
 
 Ablation metrics match `training/evaluate_model.py` and W&B: median execution time is **seconds** (wall time for the fastest passing candidate’s tests per problem, aggregated as the median across problems).
 
-### Ablation Study (scale1k, 1,000 problems)
+### Historical Ablation Study (legacy scale1k, 1,000 problems)
+
+These numbers were produced before the repository switched to disjoint train/validation/test splits. Regenerate them on `data/curated/test/dataset_clean.json` after retraining on the current `training/data/*.jsonl` files for final reporting.
 
 | Model | Pass@1 | Median Exec Time (s) | Avg Gen Latency (s) |
 |-------|--------|----------------------|---------------------|
@@ -232,7 +244,7 @@ Ablation metrics match `training/evaluate_model.py` and W&B: median execution ti
 | Control SFT | 0.709 | 0.0906 | 0.753 |
 | Runtime-Aware SFT | 0.702 | 0.0897 | 0.742 |
 
-### Serving Performance (scale1k, 1,000 prompts, A100)
+### Historical Serving Performance (legacy scale1k, 1,000 prompts, A100)
 
 | Model | Backend | Throughput (tokens/s) | Avg GPU Util (%) |
 |-------|---------|----------------------|-----------------|

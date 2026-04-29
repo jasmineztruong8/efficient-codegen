@@ -213,7 +213,6 @@ data/curated/prototyping/*results.json
 data/curated/prototyping/prototype_candidates.json
 
 # intermediate candidate files (regeneratable via select_dataset.py)
-data/curated/scale1k/candidates_1500.json
 data/curated/scale_full/candidates_full.json
 
 # logs

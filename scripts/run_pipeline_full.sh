@@ -1,7 +1,8 @@
 #!/bin/bash
 # run_pipeline_full.sh
 # Full pipeline: selects all ~6.9k eligible candidates, benchmarks, filters to clean dataset.
-# Run this only after validating with run_pipeline_1k.sh.
+# After this completes, run scripts/create_dataset_splits.py to create
+# disjoint train/validation/test splits.
 #
 # Usage: bash scripts/run_pipeline_full.sh
 
