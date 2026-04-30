@@ -41,7 +41,8 @@ efficient-codegen/
 │   ├── review_candidates.py        # Inspect candidate scores (utility)
 │   ├── quick_check.py              # Sanity check dataset (utility)
 │   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.6k
-│   └── run_pipeline_20.sh          # Slice 20-sample profiling set
+│   ├── run_pipeline_20.sh          # Slice 20-sample profiling set
+│   └── run_eval.sh                 # Evaluate all three ablation conditions on the test split
 ├── generation/
 │   └── generate_candidates.py      # Generate N candidate solutions per problem via LLM
 ├── execution/
@@ -145,9 +146,19 @@ python training/select_training_data.py \
     --output_dir training/data
 ```
 
+To sharpen the runtime-aware training signal, use `--min_speedup_ratio` to keep only problems where the fastest candidate is meaningfully faster than the first-correct one:
+
+```bash
+python training/select_training_data.py \
+    --candidates_path outputs/benchmarked_candidates_full.jsonl \
+    --dataset_path data/curated/train/dataset_clean.json \
+    --output_dir training/data \
+    --min_speedup_ratio 1.5
+```
+
 Outputs:
-- `training/data/runtime_aware.jsonl` — fastest correct candidate per train problem (1,691 examples)
-- `training/data/control.jsonl` — first correct candidate per train problem (1,691 examples)
+- `training/data/runtime_aware.jsonl` — fastest correct candidate per train problem
+- `training/data/control.jsonl` — first correct candidate per train problem (always written for all problems)
 
 #### Train models
 
@@ -174,9 +185,13 @@ Checkpoints are stored on Google Drive and are not committed (~800MB LoRA adapte
 Use the validation split while choosing prompts, hyperparameters, or checkpoints. Use the test split only once for final reporting.
 
 ```bash
-python training/evaluate_model.py --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct --run_name base_slm --data_path data/curated/test/dataset_clean.json ...
-python training/evaluate_model.py --model_path checkpoints/control_full --run_name control_sft --data_path data/curated/test/dataset_clean.json ...
-python training/evaluate_model.py --model_path checkpoints/runtime_aware_full --run_name runtime_aware_sft --data_path data/curated/test/dataset_clean.json ...
+bash scripts/run_eval.sh
+```
+
+This evaluates all three conditions (base SLM, control SFT, runtime-aware SFT) against `data/curated/test/dataset_clean.json` and logs results to WandB. Checkpoint paths default to the Google Drive locations used in Colab and can be overridden:
+
+```bash
+CONTROL_CKPT=/my/path RUNTIME_AWARE_CKPT=/my/path bash scripts/run_eval.sh
 ```
 
 ---
