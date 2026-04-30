@@ -131,7 +131,7 @@ Runs the full generation and evaluation pipeline on `scale_full` (6,646 problems
 
 ---
 
-## Phase 3: Fine-Tuning (GCP T4 + Colab)
+## Phase 3: Fine-Tuning (Colab A100)
 
 ### `notebooks/efficient_codegen_experiments.ipynb`
 
