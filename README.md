@@ -325,9 +325,21 @@ python serving/benchmark_serving.py --backend vllm \
 - All secrets (W&B API keys) should be loaded from environment variables. Never commit API keys to the repository.
 - The raw EffiCoder dataset is not committed; download it separately and place at `data/raw/efficoder.json`.
 
+<<<<<<< HEAD
 ### AI Use Disclosure
 
 *Per the HPML AI Use Policy (posted on CourseWorks). Required for every submission.*
+=======
+### Ablation Study (clean test split, 666 problems)
+
+| Model | Pass@1 | Median Exec Time (s) | Avg Gen Latency (s) |
+|-------|--------|----------------------|---------------------|
+| Base SLM | 0.345 | 0.0000819 | 0.787 |
+| Control SFT | 0.642 | 0.0000807 | 0.679 |
+| Runtime-Aware SFT | 0.639 | 0.0000809 | 0.687 |
+
+### Historical Ablation Study (legacy scale1k, 1,000 problems — pre data-split fix)
+>>>>>>> d9af511 (reran training and eval)
 
 **Did your team use any AI tool in completing this project?**
 
