@@ -7,6 +7,8 @@ bitsandbytes
 trl>=0.8.6
 wandb>=0.16.0
 tqdm>=4.66.0
+sentencepiece
+tiktoken
 torch-tb-profiler>=0.4.3
 sglang
 # serving/benchmark_serving.py --backend vllm (CUDA-capable Linux recommended; may not install on macOS)
