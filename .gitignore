@@ -226,11 +226,19 @@ checkpoints/
 outputs/*_smoke.jsonl
 outputs/passing_candidates_*.jsonl
 outputs/gpu_profiling/
-outputs/operator_profiling/
-outputs/operator_profile/
 outputs/tb_profiler/
 outputs/traces/
 outputs/traces_clean/
+
+# operator profiling — ignore large/regeneratable files, keep roofline artifacts
+outputs/operator_profiling/**/chrome_trace.json
+outputs/operator_profiling/**/tb_trace/
+outputs/operator_profiling/**/operators.csv
+outputs/operator_profiling/**/bottleneck_report.txt
+outputs/operator_profile/**/chrome_trace.json
+outputs/operator_profile/**/tb_trace/
+outputs/operator_profile/**/operators.csv
+outputs/operator_profile/**/bottleneck_report.txt
 
 # W&B local run logs
 wandb/
