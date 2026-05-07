@@ -21,7 +21,7 @@ Usage:
   python training/evaluate_model.py \
     --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name base_slm \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --use_wandb
 
   # Fine-tuned checkpoint
@@ -29,14 +29,14 @@ Usage:
     --model_path training/checkpoints/runtime_aware \
     --base_model_name Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name runtime_aware_sft \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --use_wandb
 
   # With profiling
   python training/evaluate_model.py \
     --model_path Qwen/Qwen2.5-Coder-1.5B-Instruct \
     --run_name base_slm \
-    --data_path data/curated/scale1k/dataset_clean.json \
+    --data_path data/curated/test/dataset_clean.json \
     --profile --trace_dir outputs/tb_profiler/eval
 """
 
@@ -174,12 +174,14 @@ def generate_candidates(
                 max_length=1024,
             ).to(device)
 
+            # Use greedy decoding when temperature=0; sampling otherwise.
+            greedy = temperature == 0.0
             output_ids = model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                do_sample=True,
-                temperature=temperature,
-                top_p=top_p,
+                do_sample=not greedy,
+                temperature=None if greedy else temperature,
+                top_p=None if greedy else top_p,
                 num_return_sequences=num_candidates,
                 pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,

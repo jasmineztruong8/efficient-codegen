@@ -82,16 +82,21 @@ efficient-codegen/
 │   ├── raw/                        # Raw EffiCoder dataset (not committed)
 │   └── curated/
 │       ├── scale_full/             # Full ~6.6k clean dataset
-│       ├── scale1k/                # 1k subset for ablation evaluation
+│       ├── train/                  # Shuffled split for SFT
+│       ├── validation/             # Shuffled split for tuning/model selection
+│       ├── test/                   # Shuffled split for final reporting
 │       └── prototyping/            # 20-sample profiling set
 ├── scripts/
 │   ├── select_dataset.py           # Filter and score problems from raw dataset
 │   ├── filter_passing.py           # Keep only problems whose reference solution passes tests
+│   ├── create_dataset_splits.py    # Create deterministic train/validation/test splits
 │   ├── expand_candidates.py        # Expand a base set with additional candidates
 │   ├── merge_candidates.py         # Merge base + expansion batch
-│   ├── run_pipeline_full.sh        # End-to-end data pipeline: full ~6.6k
-│   ├── run_pipeline_1k.sh          # 1k subset pipeline
-│   └── run_pipeline_20.sh          # 20-sample profiling set
+│   ├── review_candidates.py        # Inspect candidate scores (utility)
+│   ├── quick_check.py              # Sanity check dataset (utility)
+│   ├── run_pipeline_full.sh        # End-to-end pipeline: full ~6.6k
+│   ├── run_pipeline_20.sh          # Slice 20-sample profiling set
+│   └── run_eval.sh                 # Evaluate all three ablation conditions on the test split
 ├── generation/
 │   └── generate_candidates.py      # Generate N candidate solutions per problem via LLM
 ├── execution/
@@ -105,7 +110,7 @@ efficient-codegen/
 │   └── select_training_data.py     # Build runtime_aware.jsonl and control.jsonl
 ├── serving/
 │   ├── merge_checkpoint.py         # Merge LoRA adapter into base model weights
-│   └── benchmark_serving.py        # Benchmark HuggingFace and vLLM serving backends
+│   └── benchmark_serving.py        # Benchmark HuggingFace, vLLM, and SGLang serving backends
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + W&B logging (high-level metrics)
 │   ├── profile_operators.py        # Operator-level trace, bottleneck report (entry point)
@@ -184,11 +189,26 @@ Build the fine-tuning datasets from benchmarked candidates:
 ```bash
 python training/select_training_data.py \
     --candidates_path outputs/benchmarked_candidates_full.jsonl \
-    --dataset_path data/curated/scale_full/dataset_clean.json \
+    --dataset_path data/curated/train/dataset_clean.json \
     --output_dir training/data
 ```
 
 Train both models (requires ≥ 16 GB GPU):
+To sharpen the runtime-aware training signal, use `--min_speedup_ratio` to keep only problems where the fastest candidate is meaningfully faster than the first-correct one:
+
+```bash
+python training/select_training_data.py \
+    --candidates_path outputs/benchmarked_candidates_full.jsonl \
+    --dataset_path data/curated/train/dataset_clean.json \
+    --output_dir training/data \
+    --min_speedup_ratio 1.5
+```
+
+Outputs:
+- `training/data/runtime_aware.jsonl` — fastest correct candidate per train problem
+- `training/data/control.jsonl` — first correct candidate per train problem (always written for all problems)
+
+#### Train models
 
 ```bash
 # Control SFT (first correct candidate)

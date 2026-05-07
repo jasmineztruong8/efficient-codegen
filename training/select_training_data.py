@@ -11,11 +11,24 @@ and dataset_clean.json (for instruction/input lookup), and writes two files:
 
 Each output line is a JSON record with a "messages" field ready for SFTTrainer.
 
+Use --min_speedup_ratio to restrict runtime_aware.jsonl to problems where the
+fastest candidate is meaningfully faster than the first-correct one (e.g. 1.5
+means the fastest must be at least 1.5x faster). This sharpens the training
+signal at the cost of a smaller dataset. control.jsonl is always written for
+all problems regardless of this filter.
+
 Usage:
   python training/select_training_data.py \
     --candidates_path outputs/benchmarked_candidates.jsonl \
-    --dataset_path data/curated/scale1k/dataset_clean.json \
+    --dataset_path data/curated/train/dataset_clean.json \
     --output_dir training/data
+
+  # Stronger signal: only problems with >=1.5x speedup
+  python training/select_training_data.py \
+    --candidates_path outputs/benchmarked_candidates.jsonl \
+    --dataset_path data/curated/train/dataset_clean.json \
+    --output_dir training/data \
+    --min_speedup_ratio 1.5
 """
 
 from __future__ import annotations
@@ -54,6 +67,17 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="training/data",
         help="Directory to write runtime_aware.jsonl and control.jsonl",
+    )
+    parser.add_argument(
+        "--min_speedup_ratio",
+        type=float,
+        default=1.0,
+        help=(
+            "Minimum speedup ratio (fastest / first-correct) required to include a problem "
+            "in runtime_aware.jsonl. Default 1.0 keeps all problems. Use e.g. 1.5 to keep "
+            "only problems where the fastest candidate is at least 1.5x faster than the "
+            "first-correct candidate, sharpening the training signal."
+        ),
     )
     return parser.parse_args()
 
@@ -98,7 +122,9 @@ def main() -> None:
     control_path = output_dir / "control.jsonl"
 
     skipped = 0
-    written = 0
+    written_ra = 0
+    written_ctrl = 0
+    filtered_by_speedup = 0
     speedup_ratios = []
 
     with open(runtime_aware_path, "w", encoding="utf-8") as ra_f, \
@@ -113,42 +139,53 @@ def main() -> None:
             instruction = problem["instruction"]
             input_content = problem.get("input", "")
 
-            # Runtime-aware: select the candidate with the lowest median execution time
             fastest = min(candidates, key=lambda c: c["median_time"])
-            ra_f.write(json.dumps({
-                "dataset_index": dataset_index,
-                "candidate_id": fastest["candidate_id"],
-                "median_time": fastest["median_time"],
-                "messages": build_messages(instruction, input_content, fastest["extracted_code"]),
-            }, ensure_ascii=False) + "\n")
-
-            # Control: select the first passing candidate (no speed filter)
             first = min(candidates, key=lambda c: c["candidate_id"])
+
+            # Control: always written, no speed filter
             ctrl_f.write(json.dumps({
                 "dataset_index": dataset_index,
                 "candidate_id": first["candidate_id"],
                 "median_time": first["median_time"],
                 "messages": build_messages(instruction, input_content, first["extracted_code"]),
             }, ensure_ascii=False) + "\n")
+            written_ctrl += 1
 
-            # Track speedup of fastest vs first for stats
-            if first["median_time"] and first["median_time"] > 0:
-                speedup_ratios.append(first["median_time"] / fastest["median_time"])
+            # Compute speedup and apply threshold filter for runtime-aware set
+            speedup = (
+                first["median_time"] / fastest["median_time"]
+                if first["median_time"] and fastest["median_time"] and fastest["median_time"] > 0
+                else 1.0
+            )
+            speedup_ratios.append(speedup)
 
-            written += 1
+            if speedup < args.min_speedup_ratio:
+                filtered_by_speedup += 1
+                continue
+
+            ra_f.write(json.dumps({
+                "dataset_index": dataset_index,
+                "candidate_id": fastest["candidate_id"],
+                "median_time": fastest["median_time"],
+                "speedup_vs_first": round(speedup, 4),
+                "messages": build_messages(instruction, input_content, fastest["extracted_code"]),
+            }, ensure_ascii=False) + "\n")
+            written_ra += 1
 
     print(f"\nDone.")
-    print(f"Problems written:              {written}")
+    print(f"Control dataset:               {written_ctrl} problems → {control_path}")
+    print(f"Runtime-aware dataset:         {written_ra} problems → {runtime_aware_path}")
+    if args.min_speedup_ratio > 1.0:
+        print(f"  (filtered out {filtered_by_speedup} problems below {args.min_speedup_ratio}x speedup threshold)")
     print(f"Problems skipped (not in dataset): {skipped}")
-    print(f"Runtime-aware dataset:         {runtime_aware_path}")
-    print(f"Control dataset:               {control_path}")
 
     if speedup_ratios:
-        print(f"\nSpeedup of fastest vs. first-correct candidate:")
+        print(f"\nSpeedup of fastest vs. first-correct candidate (all problems):")
         print(f"  Median speedup:  {statistics.median(speedup_ratios):.2f}x")
         print(f"  Mean speedup:    {statistics.mean(speedup_ratios):.2f}x")
         print(f"  Max speedup:     {max(speedup_ratios):.2f}x")
-        print(f"  Problems with >2x speedup: {sum(1 for r in speedup_ratios if r > 2)}")
+        print(f"  Problems with >1.5x speedup: {sum(1 for r in speedup_ratios if r >= 1.5)}")
+        print(f"  Problems with >2x speedup:   {sum(1 for r in speedup_ratios if r >= 2.0)}")
 
 
 if __name__ == "__main__":
