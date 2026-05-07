@@ -108,14 +108,26 @@ efficient-codegen/
 │   └── benchmark_serving.py        # Benchmark HuggingFace and vLLM serving backends
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + W&B logging (high-level metrics)
-│   └── profile_operators.py        # Operator-level trace, roofline analysis, bottleneck report
+│   ├── profile_operators.py        # Operator-level trace, bottleneck report (entry point)
+│   ├── generation.py               # Prompt helpers and annotated autoregressive generation loop
+│   └── roofline.py                 # Analytical roofline model: memory estimation, plot, report
 ├── outputs/
 │   ├── generated_candidates_full.jsonl
 │   ├── evaluated_candidates_full.jsonl
 │   ├── benchmarked_candidates_full.jsonl
 │   ├── serving_full_results.csv
 │   ├── wandb_ablation_runs_2026-04-20.csv
-│   └── wandb_profiled_runs_2026-04-20.csv
+│   ├── wandb_profiled_runs_2026-04-20.csv
+│   └── operator_profiling/
+│       ├── base/
+│       │   ├── roofline_base.png         # Log-log roofline chart — base model
+│       │   └── roofline_report_base.txt  # Arithmetic intensity + MFU summary — base model
+│       ├── control/
+│       │   ├── roofline_control.png
+│       │   └── roofline_report_control.txt
+│       └── runtime_aware/
+│           ├── roofline_runtime_aware.png
+│           └── roofline_report_runtime_aware.txt
 └── notebooks/
     ├── base_data_generation_evaluation_pipeline.ipynb
     ├── base_model_gpu_profiling.ipynb
@@ -300,7 +312,7 @@ python serving/benchmark_serving.py --backend vllm \
 ## 6. Results and Observations
 
 - **Runtime-aware SFT matches control SFT correctness** (Pass@1 0.639 vs 0.642, Δ < 1pp) with no architecture change — demonstrating that training-data selection alone is sufficient to steer code quality without sacrificing correctness.
-- **vLLM delivers 8.3× serving throughput** over HuggingFace (1,891.1 vs 228.6 tok/s on the runtime-aware model) at 96.8% GPU utilization vs 37.3% — the gap is explained by the memory-bandwidth bottleneck in HF's decode loop, confirmed by roofline analysis showing decode ops well below the A100's ridge point (~200 FLOPs/byte).
+- **vLLM delivers 8.3× serving throughput** over HuggingFace (1,891.1 vs 228.6 tok/s on the runtime-aware model) at 96.8% GPU utilization vs 37.3%. Roofline analysis (see `outputs/operator_profiling/`) confirms why: element-wise and attention ops during decode sit at arithmetic intensity 1–10 FLOPs/byte — far below the A100's ridge point (~200 FLOPs/byte) — making the decode phase strongly memory-bandwidth-bound. The effective AI across all ops appears compute-bound only because prefill dominates total FLOPs; at batch_size=1 decode is the serving bottleneck. vLLM eliminates this with PagedAttention and continuous batching, raising effective batch size and arithmetic intensity.
 - **Per-token CPU-GPU synchronizations are a measurable bottleneck** — `aten::item` + `cudaStreamSynchronize` account for ~6.7% of total operator time in HuggingFace's `model.generate()` loop due to EOS-token detection; vLLM eliminates this with asynchronous scheduling.
 - **qLoRA training is memory-efficient** — 4-bit NF4 quantization + rank-16 LoRA enables fine-tuning a 1.5B model on a single T4 (16 GB) with no degradation in Pass@1 relative to the base model after control SFT.
 - **What did not work:** Execution-time improvements from runtime-aware training were marginal (0.0807 ms vs 0.0819 ms baseline) — likely because at the 1.5B scale the model lacks sufficient capacity to consistently learn and apply algorithmic improvements; the dataset also skews toward already-fast reference solutions, leaving little room for further optimization.

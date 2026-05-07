@@ -1,0 +1,63 @@
+========================================================================
+ROOFLINE ANALYSIS
+  GPU              : A100 SXM4-40GB
+  Peak compute     : 312 TFLOPs/s
+  Peak bandwidth   : 1555 GB/s
+  Ridge point      : 200.6 FLOPs/byte
+  Timing source    : cpu_time_total (CUDA times unavailable in this PyTorch build)
+  Memory bytes src : analytical (36 ops), allocation proxy (0), ridge fallback (0).
+                     For hardware-accurate values use NVIDIA Nsight Compute.
+========================================================================
+
+  16 memory-bound op(s)  |  20 compute-bound op(s)
+
+  Time in memory-bound ops :     13.4 ms  (1.7%)
+  Time in compute-bound ops:    781.6 ms  (98.3%)
+
+  Effective arithmetic intensity : 991.3 FLOPs/byte
+  Ridge point                   : 200.6 FLOPs/byte
+  Overall workload              : COMPUTE-BOUND
+
+  Operator                                        AI (F/B)   GFLOPs/s          Bound   CUDA ms          Mem src
+  -------------------------------------------------------------------------------------------------------------
+  aten::addmm                                      3509.72       19.0        compute   145.689      analytical
+  aten::mm                                         3525.31     1037.6        compute    93.590      analytical
+  aten::addmm                                      1760.56      130.9        compute    63.573      analytical
+  aten::mul                                         588.00        0.1        compute    60.335      analytical
+  aten::add                                         588.00        0.1        compute    56.706      analytical
+  aten::add                                         598.50        0.0        compute    54.921      analytical
+  aten::mm                                         1761.71      161.6        compute    51.516      analytical
+  aten::mul                                         588.00        0.0        compute    46.308      analytical
+  aten::mul                                         598.50        0.1        compute    46.013      analytical
+  aten::mul                                         598.50        0.1        compute    45.249      analytical
+  aten::mm                                         1762.66     1163.4        compute    41.734      analytical
+  aten::mul                                         294.00        0.5        compute    28.895      analytical
+  aten::add                                         294.00        0.1        compute    21.488      analytical
+  aten::add                                         294.00        0.0        compute    19.821      analytical
+  aten::mul                                          21.00        0.0         memory     2.170      analytical
+  aten::bmm                                          31.26        0.0         memory     1.934      analytical
+  aten::mm                                           62.96    15567.4         memory     1.889      analytical
+  aten::addmm                                      7351.60     9002.7        compute     1.600      analytical
+  aten::mm                                        14656.80   339643.2        compute     1.484      analytical
+  aten::add                                          10.50        0.0         memory     1.224      analytical
+
+  MFU: insufficient FLOPs data (re-run on a CUDA device).
+
+========================================================================
+INTERPRETATION FOR LLM INFERENCE
+========================================================================
+
+  Prefill (full prompt processed in parallel):
+    • Large GEMM: M = prompt_length → high arithmetic intensity → COMPUTE-bound
+    • Optimise with: bfloat16 Tensor Cores, FlashAttention, torch.compile
+
+  Decode (one token at a time, small batch):
+    • AI ≈ 2 / bytes_per_param ≈ 1–4 FLOPs/byte — far below ridge (201 F/B)
+    • Strongly MEMORY-BOUND; adding compute does NOT help
+    • Optimise with: larger batch (vLLM continuous batching), INT8/INT4 quantization,
+      KV-cache in lower precision, speculative decoding
+
+  Why vLLM outperforms HuggingFace on decode:
+    • Continuous batching + PagedAttention raise effective batch size → AI increases
+
+========================================================================
