@@ -13,7 +13,7 @@
   - Arnav Mahajan ([UNI]) — *role / area of contribution*
   - Jasmine Truong ([UNI]) — *role / area of contribution*
   - Jianyi Gao ([UNI]) — *role / area of contribution*
-  - Yingxin Zhang (yz3202) — *data pipeline,  profiling pipeline and results analysis, integrated W&B/TensorBoard tracking, report writing*
+  - Yingxin Zhang (yz3202) — *data pipeline,  profiling pipeline and results analysis, integrated W&B/TensorBoard tracking*
 
 ## Submission
 
