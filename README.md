@@ -35,7 +35,7 @@ Standard code-generation LLMs are trained to maximize correctness (Pass@1) but a
 ## 2. Model/Application Description
 
 - **Model architecture:** `Qwen2.5-Coder-1.5B-Instruct` — a 1.5B-parameter decoder-only transformer optimized for code. Fine-tuned with qLoRA (4-bit NF4 quantization + rank-16 LoRA adapters via `peft` and `trl`).
-- **Framework:** PyTorch 2.10–2.11 (cu128), HuggingFace Transformers, PEFT, TRL (SFTTrainer), vLLM (installed via `pip install vllm` on Colab; version unverified).
+- **Framework:** PyTorch 2.10–2.11 (cu128), HuggingFace Transformers, PEFT, TRL (SFTTrainer), vLLM.
 - **Dataset:** [EffiCoder](https://arxiv.org/abs/2410.10209) — ~9.4k competitive-programming problems with reference solutions and test cases. We curate a clean subset of ~6.6k problems, generate 5 candidate solutions per problem, and select the fastest correct candidate to build a runtime-aware fine-tuning dataset of 2,110 examples.
 - **Custom modifications:** Runtime-aware training data selection — instead of taking any passing candidate, we rank by measured median execution time (7 timed subprocess runs) and train on the fastest. A control SFT model is trained on the first passing candidate as an ablation.
 - **Hardware target:** NVIDIA A100-SXM4-40GB (Vast.ai / GCP) for generation, training, profiling, and qLoRA training.
