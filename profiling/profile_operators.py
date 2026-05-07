@@ -4,10 +4,12 @@ profile_operators.py
 Operator-level profiling with torch.profiler.
 
 Produces:
-  - Chrome trace JSON  (open in chrome://tracing or ui.perfetto.dev)
-  - TensorBoard trace  (existing pipeline)
-  - operators.csv      (top-N ops sorted by CUDA self-time)
+  - Chrome trace JSON    (open in chrome://tracing or ui.perfetto.dev)
+  - TensorBoard trace    (existing pipeline)
+  - operators.csv        (top-N ops sorted by CUDA self-time)
   - bottleneck_report.txt
+  - roofline_report.txt  (arithmetic intensity, MFU, compute- vs memory-bound classification)
+  - roofline.png         (log-log roofline chart)
 
 Key instrumentation:
   - "host_to_device"  : tokenizer tensors moved to GPU
@@ -25,7 +27,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, cast, Dict, List
 
 import torch
 from torch.profiler import (
@@ -34,6 +36,11 @@ from torch.profiler import (
     record_function,
 )
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend; safe on headless GPU nodes
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +65,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch_size", type=int, default=1,
                    help="Number of prompts to process simultaneously. "
                         "Larger values improve GPU utilization (T4/G4 recommendation).")
+    # Roofline model parameters — set to match your actual GPU
+    p.add_argument("--gpu_name", default="T4",
+                   help="GPU label shown on the roofline plot (e.g. T4, A100, V100)")
+    p.add_argument("--gpu_peak_tflops", type=float, default=65.0,
+                   help="Peak FP16 FLOPs in TFLOPS. T4=65, A100=312, V100=125, A10G=125")
+    p.add_argument("--gpu_peak_bandwidth_gbs", type=float, default=300.0,
+                   help="Peak HBM bandwidth in GB/s. T4=300, A100=2000, V100=900, A10G=600")
     return p.parse_args()
 
 
@@ -111,7 +125,6 @@ def generate_with_annotations(
       - 'decode_step_N'   : Nth token generation (first decode_steps_to_trace steps)
       - 'decode_remaining': all steps after the annotated ones
     """
-    device = input_ids.device
     past_key_values = None
     generated = input_ids.clone()
     cur_attn = attention_mask.clone()
@@ -344,6 +357,228 @@ def analyze_bottlenecks(key_avgs, top_n: int, device: str, time_key: str = "") -
 
 
 # ---------------------------------------------------------------------------
+# Roofline analysis
+# ---------------------------------------------------------------------------
+
+def compute_roofline_metrics(
+    key_avgs,
+    gpu_peak_flops: float,
+    gpu_peak_bandwidth: float,
+    time_key: str = "",
+) -> List[Dict[str, Any]]:
+    """
+    Compute arithmetic intensity and attainable performance per profiled operator.
+
+    AI = FLOPs / bytes.  We use cuda_memory_usage as a proxy for HBM traffic.
+    For hardware-accurate values, use NVIDIA Nsight Compute (l1tex__t_bytes.sum).
+
+    time_key: "cuda_time_total" or "cpu_time_total". When empty, auto-detects
+    by checking whether any op has non-zero cuda_time_total (some PyTorch builds
+    report 0 for all CUDA times despite running on GPU).
+    """
+    if not time_key:
+        has_cuda = any(getattr(e, "cuda_time_total", 0) > 0 for e in key_avgs)
+        time_key = "cuda_time_total" if has_cuda else "cpu_time_total"
+
+    ridge_point = gpu_peak_flops / gpu_peak_bandwidth
+    metrics: List[Dict[str, Any]] = []
+    for e in key_avgs:
+        flops = getattr(e, "flops", 0) or 0
+        if flops <= 0:
+            continue  # skip ops with no FLOPs estimate (activations, norms, etc.)
+
+        mem_bytes = abs(getattr(e, "cuda_memory_usage", 0) or 0)
+        if mem_bytes == 0:
+            # Conservative fallback: place op at the ridge point
+            mem_bytes = flops / ridge_point
+
+        time_us = getattr(e, time_key, 0) or 0
+        if time_us <= 0:
+            continue
+
+        ai = flops / mem_bytes
+        perf_gflops = flops / (time_us / 1e6) / 1e9
+        metrics.append({
+            "name": e.key,
+            "ai": ai,
+            "perf_gflops": perf_gflops,
+            "bound": "compute" if ai >= ridge_point else "memory",
+            "cuda_ms": time_us / 1e3,
+            "flops": flops,
+            "mem_bytes": mem_bytes,
+            "count": e.count,
+            "time_key": time_key,
+        })
+    return sorted(metrics, key=lambda x: x["cuda_ms"], reverse=True)
+
+
+def plot_roofline(
+    metrics: List[Dict[str, Any]],
+    gpu_peak_flops: float,
+    gpu_peak_bandwidth: float,
+    gpu_name: str,
+    out_path: str,
+) -> None:
+    """Save a log-log roofline chart with each profiled operator as a scatter point."""
+    peak_gflops = gpu_peak_flops / 1e9
+    peak_gbps   = gpu_peak_bandwidth / 1e9
+    ridge       = gpu_peak_flops / gpu_peak_bandwidth
+
+    _, ax = plt.subplots(figsize=(13, 7))
+
+    # Roofline envelope
+    ai_lo  = min(m["ai"] for m in metrics) * 0.1 if metrics else 1e-2
+    ai_hi  = max(m["ai"] for m in metrics) * 10  if metrics else ridge * 10
+    ai_range = np.logspace(np.log10(max(ai_lo, 1e-3)), np.log10(ai_hi), 600)
+    attainable = np.minimum(gpu_peak_bandwidth * ai_range, gpu_peak_flops) / 1e9
+    ax.plot(ai_range, attainable, "k-", linewidth=2.5, label="Roofline ceiling", zorder=3)
+
+    # Ridge point
+    ax.axvline(x=ridge, color="gray", linestyle="--", alpha=0.6,
+               label=f"Ridge point ({ridge:.0f} FLOPs/byte)")
+
+    # Regime shading
+    ax.axvspan(ai_lo * 0.5, ridge, alpha=0.04, color="steelblue")
+    ax.axvspan(ridge, ai_hi * 2, alpha=0.04, color="crimson")
+    ax.text(ridge * 0.05, peak_gflops * 0.3, "Memory-bound", fontsize=9,
+            color="steelblue", alpha=0.7, ha="left")
+    ax.text(ridge * 2.0, peak_gflops * 0.3, "Compute-bound", fontsize=9,
+            color="crimson", alpha=0.7, ha="left")
+
+    # Scatter operators
+    for bound, color, marker in [("memory", "steelblue", "o"), ("compute", "crimson", "^")]:
+        ops = [m for m in metrics if m["bound"] == bound and m["perf_gflops"] > 0]
+        if not ops:
+            continue
+        xs    = [m["ai"]         for m in ops]
+        ys    = [m["perf_gflops"] for m in ops]
+        names = [m["name"]       for m in ops]
+        label = "Memory-bound ops" if bound == "memory" else "Compute-bound ops"
+        ax.scatter(xs, ys, c=color, s=110, marker=cast(Any, marker), zorder=5,
+                   label=label, alpha=0.85, edgecolors="white", linewidths=0.6)
+        for x, y, name in zip(xs, ys, names):
+            short = name.replace("aten::", "").replace("cuda::", "")[:18]
+            ax.annotate(short, (x, y), fontsize=6.5, alpha=0.75,
+                        xytext=(5, 4), textcoords="offset points")
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Arithmetic Intensity  (FLOPs / byte)", fontsize=13)
+    ax.set_ylabel("Attainable Performance  (GFLOPs/s)", fontsize=13)
+    ax.set_title(
+        f"Roofline Model — {gpu_name}\n"
+        f"Peak compute: {peak_gflops / 1e3:.0f} TFLOPs/s  |  "
+        f"Peak BW: {peak_gbps:.0f} GB/s  |  "
+        f"Ridge: {ridge:.0f} FLOPs/byte",
+        fontsize=13,
+    )
+    ax.legend(fontsize=10, loc="lower right")
+    ax.grid(True, which="both", alpha=0.25)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Roofline plot saved → {out_path}")
+
+
+def format_roofline_report(
+    metrics: List[Dict[str, Any]],
+    gpu_peak_flops: float,
+    gpu_peak_bandwidth: float,
+    gpu_name: str,
+    key_avgs,
+) -> str:
+    """Build a human-readable roofline + MFU report."""
+    ridge = gpu_peak_flops / gpu_peak_bandwidth
+    lines: List[str] = []
+
+    lines.append("=" * 72)
+    lines.append("ROOFLINE ANALYSIS")
+    lines.append(f"  GPU              : {gpu_name}")
+    lines.append(f"  Peak compute     : {gpu_peak_flops / 1e12:.0f} TFLOPs/s")
+    lines.append(f"  Peak bandwidth   : {gpu_peak_bandwidth / 1e9:.0f} GB/s")
+    lines.append(f"  Ridge point      : {ridge:.1f} FLOPs/byte")
+    time_source = metrics[0]["time_key"] if metrics else "cpu_time_total"
+    timing_note = (
+        "cuda_time_total" if time_source == "cuda_time_total"
+        else "cpu_time_total (CUDA times unavailable in this PyTorch build)"
+    )
+    lines.append(f"  Timing source    : {timing_note}")
+    lines.append(
+        "  Memory bytes src : cuda_memory_usage (allocation proxy; not raw HBM bandwidth).\n"
+        "                     For hardware-accurate values use NVIDIA Nsight Compute."
+    )
+    lines.append("=" * 72)
+
+    mem_ops = [m for m in metrics if m["bound"] == "memory"]
+    cmp_ops = [m for m in metrics if m["bound"] == "compute"]
+    lines.append(f"\n  {len(mem_ops)} memory-bound op(s)  |  {len(cmp_ops)} compute-bound op(s)\n")
+
+    header = (
+        f"  {'Operator':<45} {'AI (F/B)':>10} {'GFLOPs/s':>10} "
+        f"{'Bound':>14} {'CUDA ms':>9}"
+    )
+    lines.append(header)
+    lines.append("  " + "-" * (len(header) - 2))
+    for m in metrics[:20]:
+        lines.append(
+            f"  {m['name']:<45} {m['ai']:>10.2f} {m['perf_gflops']:>10.1f} "
+            f"  {m['bound']:>12}  {m['cuda_ms']:>8.3f}"
+        )
+
+    # MFU
+    total_flops  = sum(getattr(e, "flops", 0) or 0 for e in key_avgs)
+    total_cuda_s = sum(getattr(e, "cuda_time_total", 0) or 0 for e in key_avgs) / 1e6
+    lines.append("")
+    if total_cuda_s > 0 and total_flops > 0:
+        mfu = total_flops / total_cuda_s / gpu_peak_flops * 100
+        lines.append(f"  Model FLOP Utilization (MFU): {mfu:.2f}%")
+        if mfu < 10:
+            lines.append(
+                f"  → MFU < 10%: memory bandwidth is the dominant bottleneck.\n"
+                f"    Increasing batch size (e.g. vLLM continuous batching) raises\n"
+                f"    arithmetic intensity and will improve GPU utilization."
+            )
+        elif mfu < 50:
+            lines.append(
+                f"  → MFU {mfu:.1f}%: mixed bottleneck. Profile prefill vs. decode\n"
+                f"    separately to identify which phase limits throughput."
+            )
+        else:
+            lines.append(
+                f"  → MFU > 50%: strong compute utilization; approaching the compute ceiling."
+            )
+    else:
+        lines.append("  MFU: insufficient FLOPs data (re-run on a CUDA device).")
+
+    lines.append("\n" + "=" * 72)
+    lines.append("INTERPRETATION FOR LLM INFERENCE")
+    lines.append("=" * 72)
+    lines.append(f"""
+  Prefill (full prompt processed in parallel):
+    • Large GEMM: M = prompt_length (often >> 1) → high arithmetic intensity
+    • Tends to be COMPUTE-bound (above the ridge point)
+    • Optimise with: bfloat16 Tensor Cores, FlashAttention, torch.compile
+
+  Decode (one token at a time):
+    • Loads the entire weight matrix to produce 1 output row (M = batch_size)
+    • AI ≈ 2 / bytes_per_param ≈ 1–4 FLOPs/byte — far below ridge ({ridge:.0f} F/B)
+    • Strongly MEMORY-BOUND; adding more compute does NOT help
+    • Optimise with:
+        - Larger effective batch size → continuous batching (vLLM PagedAttention)
+        - Quantization: INT8/INT4 halves weight bytes → doubles AI
+        - KV-cache in lower precision (reduces decode memory traffic)
+        - Speculative decoding: amortises decode cost across multiple accepted tokens
+
+  Why vLLM outperforms HuggingFace on your serving benchmark:
+    • Continuous batching keeps decode batch size high → AI increases
+    • PagedAttention reduces KV-cache waste → room for larger batches
+    • Both push decode arithmetic intensity toward the ridge point
+""")
+    lines.append("=" * 72)
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -376,8 +611,6 @@ def main() -> None:
         torch_dtype=dtype,
         device_map="auto" if device == "cuda" else None,
     )
-    if device == "cpu":
-        model.to("cpu")
     model.eval()
 
     # ---- Warm-up (not profiled) ----
@@ -516,6 +749,31 @@ def main() -> None:
     with open(report_path, "w") as f:
         f.write(report)
     print(f"\nBottleneck report   → {report_path}")
+
+    # ---- Roofline analysis ----
+    gpu_peak_flops = args.gpu_peak_tflops * 1e12
+    gpu_peak_bandwidth = args.gpu_peak_bandwidth_gbs * 1e9
+
+    roofline_metrics = compute_roofline_metrics(key_avgs, gpu_peak_flops, gpu_peak_bandwidth)
+    roofline_report = format_roofline_report(
+        roofline_metrics, gpu_peak_flops, gpu_peak_bandwidth, args.gpu_name, key_avgs
+    )
+    print("\n" + roofline_report)
+
+    roofline_report_path = str(out_dir / "roofline_report.txt")
+    with open(roofline_report_path, "w") as f:
+        f.write(roofline_report)
+    print(f"Roofline report     → {roofline_report_path}")
+
+    roofline_plot_path = str(out_dir / "roofline.png")
+    if roofline_metrics:
+        plot_roofline(
+            roofline_metrics, gpu_peak_flops, gpu_peak_bandwidth,
+            args.gpu_name, roofline_plot_path,
+        )
+    else:
+        print("No FLOPs data available for roofline plot — re-run on a CUDA device.")
+
     print(f"TensorBoard traces  → {tb_dir}")
     print("\nTo view in TensorBoard:")
     print(f"  tensorboard --logdir {tb_dir}")
