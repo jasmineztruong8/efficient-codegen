@@ -2,7 +2,6 @@
 profile_operators.py
 
 Operator-level profiling with torch.profiler. Produces:
-  - chrome_trace.json, tb_trace/   (TensorBoard / Perfetto)
   - operators.csv                  (top-N ops by time)
   - bottleneck_report.txt
   - roofline_report.txt + roofline.png
@@ -12,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import shutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -131,7 +129,7 @@ def analyze_bottlenecks(key_avgs, top_n: int, device: str, time_key: str = "") -
 
     lines += ["\n" + "=" * 72, f"IDENTIFIED BOTTLENECKS ({len(bottlenecks)} found)", "=" * 72]
     if not bottlenecks:
-        lines.append("No major bottlenecks detected. Inspect chrome_trace.json for manual analysis.")
+        lines.append("No major bottlenecks detected.")
     for i, (name, obs, rec) in enumerate(bottlenecks, 1):
         lines += [f"\nBottleneck {i}: {name}", f"  Observation : {obs}", f"  Suggestion  : {rec}"]
 
@@ -146,8 +144,6 @@ def analyze_bottlenecks(key_avgs, top_n: int, device: str, time_key: str = "") -
 def main() -> None:
     args = parse_args()
     out_dir = ensure_dir(args.output_dir)
-    tb_dir  = ensure_dir(str(out_dir / "tb_trace"))
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype  = (torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
               else torch.float16 if torch.cuda.is_available() else torch.float32)
@@ -217,13 +213,6 @@ def main() -> None:
                   f"in={input_ids.shape[1]}  out={out_len}  "
                   f"latency={t1-t0:.3f}s  tok/s={out_len*input_ids.shape[0]/(t1-t0):.1f}")
             prof.step()
-
-    # Chrome trace
-    chrome_path = str(out_dir / "chrome_trace.json")
-    prof.export_chrome_trace(chrome_path)
-    tb_filename = f"worker0.{int(time.time()*1000)}.pt.trace.json"
-    shutil.copy(chrome_path, str(tb_dir / tb_filename))
-    print(f"\nChrome trace → {chrome_path}")
 
     # Operator CSV + bottleneck report
     key_avgs = prof.key_averages(group_by_input_shape=False)

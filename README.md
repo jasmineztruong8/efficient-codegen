@@ -113,7 +113,7 @@ efficient-codegen/
 │   └── benchmark_serving.py        # Benchmark HuggingFace, vLLM, and SGLang serving backends
 ├── profiling/
 │   ├── profile_model.py            # PyTorch Profiler + W&B logging (high-level metrics)
-│   ├── profile_operators.py        # Operator-level trace, bottleneck report (entry point)
+│   ├── profile_operators.py        # Operator-level profiling, bottleneck report (entry point)
 │   ├── generation.py               # Prompt helpers and annotated autoregressive generation loop
 │   └── roofline.py                 # Analytical roofline model: memory estimation, plot, report
 ├── outputs/
@@ -285,7 +285,7 @@ python profiling/profile_model.py \
     --use_wandb --wandb_project hpml-efficient-codegen
 ```
 
-Operator-level trace with roofline analysis (outputs Chrome trace, roofline plot, and bottleneck report):
+Operator-level profiling with roofline analysis (outputs `operators.csv`, `bottleneck_report.txt`, `roofline_report.txt`, and `roofline.png`):
 
 ```bash
 python profiling/profile_operators.py \
@@ -296,7 +296,6 @@ python profiling/profile_operators.py \
     --gpu_name "A100 SXM4-40GB" \
     --gpu_peak_tflops 312 \
     --gpu_peak_bandwidth_gbs 1555
-# View Chrome trace at ui.perfetto.dev or chrome://tracing
 ```
 
 Full 3-model profiling comparison (base, control, runtime-aware) is automated in `notebooks/gpu_profiling_comparison.ipynb`.
