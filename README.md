@@ -10,10 +10,10 @@
 
 - **Team Name:** efficient-codegen
 - **Members:**
-  - Arnav Mahajan ([UNI]) — *role / area of contribution*
-  - Jasmine Truong ([UNI]) — *role / area of contribution*
-  - Jianyi Gao ([UNI]) — *role / area of contribution*
-  - Yingxin Zhang (yz3202) — *built the profiling pipeline and performed GPU/runtime profiling analysis, developed the initial data pipeline, and integrated W&B/TensorBoard tracking and visualization*
+  - Arnav Mahajan (am6442) — *model training run, grid search logic, train/test split implementation, sglang support*
+  - Jasmine Truong (jt3595) — *data pipeline, model retraining and evaluation, serving benchmarks, figures, and demo notebooks*
+  - Jianyi Gao (jg4553) — *data construction, training notebook and workflow updates, ablation evaluations, serving optimization benchmarking*
+  - Yingxin Zhang (yz3202) — *profiling pipeline and profiling analysis, initial data pipeline, integrated W&B/TensorBoard tracking and visualization*
 
 ## Submission
 
@@ -355,11 +355,11 @@ python serving/benchmark_serving.py --backend vllm \
 
 **Tool(s) used:** Claude, GitHub Copilot, Codex, ChatGPT
 
-**Specific purpose:** [PLACEHOLDER — e.g., debugging CUDA profiling code, clarifying roofline model concepts, drafting README prose]
+**Specific purpose:** Debug and refactor codes, visualize figures, document results, draft README
 
-**Sections affected:** [PLACEHOLDER — e.g., profiling/profile_operators.py roofline functions, README]
+**Sections affected:** execution/, generation/ notebooks, profiling/, scrips/, serving/, training/, README.md
 
-**How we verified correctness:** [PLACEHOLDER — e.g., re-ran all reported experiments ourselves; confirmed profiler trace interpretations against raw traces; reviewed and tested all AI-suggested code before committing]
+**How we verified correctness:** manually inspect codes, re-ran every experiment multiple times ourselves
 
 By submitting this project, the team confirms that the analysis, interpretations, and conclusions are our own, and that any AI assistance is fully disclosed above. The same disclosure block appears as an appendix in the final report.
 
