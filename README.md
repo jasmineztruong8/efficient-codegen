@@ -21,7 +21,7 @@
 - **Final report:** [`deliverables/Optimizationof SLMs for Efficient Code Generation.pdf`](deliverables/Optimizationof SLMs for Efficient Code Generation.pdf)
 - **Final presentation:** [`deliverables/HPML_Final_Presentation.pptx`](deliverables/HPML_Final_Presentation.pptx)
 - **Experiment-tracking dashboard:** [https://wandb.ai/efficient-codegen/hpml-efficient-codegen](https://wandb.ai/efficient-codegen/hpml-efficient-codegen)
-- **Medium Blog: ** [https://medium.com/@am6442/optimization-of-slms-for-efficient-code-generation-88573316f325]
+- **Medium Blog:** [https://medium.com/@am6442/optimization-of-slms-for-efficient-code-generation-88573316f325](https://medium.com/@am6442/optimization-of-slms-for-efficient-code-generation-88573316f325)
 
 The final report PDF and the presentation file are checked into the `deliverables/` folder of this repository **and** uploaded to CourseWorks.
 
